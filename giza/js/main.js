@@ -943,12 +943,14 @@ function setupMapNavigation() {
   };
   dom.addEventListener('dblclick', (e) => focusAt(e.clientX, e.clientY));
   let last = null;
-  dom.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') e.target._down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  // timings use when each touch happened (event.timeStamp), not when it was handled
+  let down = null;
+  dom.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') down = { x: e.clientX, y: e.clientY, t: e.timeStamp }; });
   dom.addEventListener('pointerup', (e) => {
-    if (e.pointerType !== 'touch' || !e.target._down) return;
-    const d = e.target._down; e.target._down = null;
-    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10 || performance.now() - d.t > 300) { last = null; return; }
-    const now = performance.now();
+    if (e.pointerType !== 'touch' || !down) return;
+    const d = down; down = null;
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10 || e.timeStamp - d.t > 300) { last = null; return; }
+    const now = e.timeStamp;
     if (last && now - last.t < 350 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 30) { last = null; focusAt(e.clientX, e.clientY); } else last = { x: e.clientX, y: e.clientY, t: now };
   });
 }
