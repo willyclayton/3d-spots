@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SkySystem } from '../../shared/engine/sky.js';
 import { LabelLayer } from '../../shared/engine/labels.js';
 import { WalkController } from '../../shared/engine/walk.js';
-import { SITE, PYRAMIDS, SPHINX } from './data/site.js';
+import { SITE, PYRAMIDS, SMALL_PYRAMIDS, SPHINX } from './data/site.js';
 import { PLACES } from './data/places.js';
 import { loadTextures } from './materials.js';
 import { Terrain } from './terrain.js';
@@ -627,6 +627,9 @@ function setSection(on, opts = {}, moveCamera = true) {
   return flyP;
 }
 app.setSection = setSection;
+app.selectPlace = (id, o) => selectPlace(id, o);
+app.setEra = (e) => setEra(e);
+app.places = PLACES;
 
 function setLabels(on) { state.labels = on; app.labels.setEnabled(on); app.ui.syncLabels(on); }
 function setVoids(on) { state.showVoids = on; for (const it of Object.values(app.interiors)) it.voidMeshes.forEach((v) => { v.visible = on && (state.xray || (state.section && app.section.target === it.id)); }); }
@@ -721,6 +724,33 @@ function selectPlace(id, opts = {}) {
   return flyTo(pos, target);
 }
 
+// Keep the orbiting camera out of the solid pyramids. Orbiting about a point
+// on a face (an entrance, say) would otherwise swing it inside the stone,
+// where every block is seen from behind and the pyramid looks hollow. Not
+// applied in cutaway or x-ray, where looking from inside is the point.
+const SOLIDS = [...Object.values(PYRAMIDS), ...SMALL_PYRAMIDS];
+function keepOutOfStone(p, margin = 1.5) {
+  for (let pass = 0; pass < 2; pass++) {
+    for (const P of SOLIDS) {
+      const s = Math.sin(P.slope), c = Math.cos(P.slope), t = Math.tan(P.slope), hb = P.base / 2;
+      const full = hb * t;
+      const H = state.era === 'built' ? (P.heightOrig ?? full) : (P.heightNow ?? full);
+      if (H < 3) continue;
+      const dx = p.x - P.cx, dz = p.z - P.cz, y = p.y - P.baseY;
+      if (y < -2 || y > H + margin) continue;
+      const ax = Math.abs(dx), az = Math.abs(dz), m = Math.max(ax, az);
+      const reach = hb - Math.max(0, y) / t;           // half-width of the solid at this height
+      if (m > reach + margin / s) continue;
+      // out through the nearest face, or over the (truncated) top if that is closer
+      const dFace = (reach - m) * s + margin, dTop = H + margin - y;
+      if (dTop < dFace) { p.y = P.baseY + H + margin; continue; }
+      if (ax >= az) p.x += Math.sign(dx || 1) * s * dFace; else p.z += Math.sign(dz || 1) * s * dFace;
+      p.y += c * dFace;
+    }
+  }
+}
+app.keepOutOfStone = keepOutOfStone;
+
 // ------------------------------------------------------------------- loop --
 const clock = new THREE.Clock();
 let envTimer = 0;
@@ -746,6 +776,7 @@ function startLoop() {
       controls.update();
       const minY = app.terrain.heightAt(camera.position.x, camera.position.z, false) + 1.2;
       if (camera.position.y < minY && !state.section) camera.position.y = minY;
+      if (!state.section && !state.xray) keepOutOfStone(camera.position);
       const dist = camera.position.distanceTo(controls.target);
       camera.near = THREE.MathUtils.clamp(dist * 0.0015, 0.08, 3);
       camera.updateProjectionMatrix();
