@@ -3,6 +3,7 @@
 Explorable 3D maps of the world's great places, served as a static site on GitHub Pages.
 
 - **[Giza Pyramids](giza/)**: live
+- **[Colosseum](colosseum/)**: preview, in progress
 - Petra, Eiffel Tower: coming soon
 
 No build step. Everything is plain ES modules; [three.js r170](vendor/three) and
@@ -64,6 +65,43 @@ An explorable model of the Giza plateau:
 | `q` | `?q=low` | quality: `low`, `medium`, `high` |
 | `view` | `?view=panorama` | preset camera (`default`, `khufu`, `sphinx`, `panorama`, `hero`, `sw`, `entrance`) |
 
+### Accuracy notes
+
+Dimensions follow Petrie's survey and later work (Maragioglio & Rinaldi, Lehner, ScanPyramids).
+Khufu's interior is the most precise. The layouts inside Khafre and Menkaure, the positions of the
+smaller monuments, and the shape of the Big Void (whose true form is unknown) are approximate.
+
+## Colosseum (preview)
+
+The Flavian Amphitheatre in its valley between the Palatine, Caelian and Oppian hills:
+
+- **Generated bay by bay** on a four-centred oval (the 3-4-5 construction): 188 × 156 m outside,
+  86 × 54 m arena, 80 bays. Every ring is an offset of the façade, so the radial walls follow the
+  curve's normals.
+- **The façade**: three arcades framed by Tuscan, Ionic and Corinthian half-columns with their
+  entablatures, the attic with pilasters, windows and the consoles for the awning masts. Arches
+  carry their numbers in the data (I–LXXVI, counter-clockwise from the south entrance).
+- **Inside**: the second and third rings, the ambulatory floors, 80 radial walls, the stepped
+  seating in four tiers, the podium and arena wall, and Domitian's hypogeum (corridors, cells,
+  the basement floor; the 28 Flavian lifts in 90 CE).
+- **Today / 90 CE**: the ruin (the north side standing to full height between Stern's and
+  Valadier's buttresses, the south side down to the inner ring, the marble seats gone, the arena
+  open with the modern platform at the east end) or the complete building with marble seats and a
+  sanded arena floor.
+- **Cutaway** across or along the building, at any position, with solid cut faces; x-ray.
+- **Places and a short tour** of the building and its neighbours (Arch of Constantine, Meta Sudans,
+  the Colossus base, the Temple of Venus and Roma, the Ludus Magnus).
+
+Still to come: walking inside, the surroundings modelled (the neighbouring monuments, the
+modern city, trees), the awning, statues and colour of 90 CE.
+
+Accuracy: the overall dimensions are well established; the orientation of the long axis (set to
+a bearing of 106°, `AXIS_BEARING` in `colosseum/js/data/site.js`), the storey heights, the seating
+profile, the hypogeum layout and the positions of the surrounding monuments are approximate. The
+elevation tiles are too coarse for the narrow valley, so its floor is sculpted along the streets.
+
+## Code
+
 ### Layout
 
 ```
@@ -87,6 +125,12 @@ giza/js/sphinx*.js         Sphinx (signed distance field, meshed in a Web Worker
 giza/js/tour.js            the tour's stops
 giza/data/terrain.png      processed elevation model
 giza/textures/             procedural PBR textures
+colosseum/js/main.js       the Colosseum's SpotApp subclass
+colosseum/js/data/         plan, rings, storeys, seating, survival per bay (site.js) and places
+colosseum/js/plan.js       the four-centred oval, its offsets, bays, plan <-> world
+colosseum/js/amphitheatre.js  the bay-by-bay generator (both eras)
+colosseum/js/section.js    clip-plane cutaway with solid cut faces
+colosseum/js/terrain.js    hills from the heightmap, the valley floor and streets sculpted
 tools/                     generators for the terrain and textures (Python + numpy)
 ```
 
@@ -100,14 +144,10 @@ coordinates to `SITES` in `tools/gen_terrain.py` for its heightmap.
 ### Regenerating data
 
 ```
-python3 tools/gen_terrain.py giza    # downloads SRTM tiles, writes giza/data/terrain.png
-python3 tools/gen_textures.py        # writes giza/textures/*.jpg
+python3 tools/gen_terrain.py giza          # downloads SRTM tiles, writes giza/data/terrain.png
+python3 tools/gen_terrain.py colosseum     # writes colosseum/data/terrain.png
+python3 tools/gen_textures.py              # writes giza/textures/*.jpg
+python3 tools/gen_textures.py colosseum    # writes colosseum/textures/*.jpg
 ```
-
-### Accuracy notes
-
-Dimensions follow Petrie's survey and later work (Maragioglio & Rinaldi, Lehner, ScanPyramids).
-Khufu's interior is the most precise. The layouts inside Khafre and Menkaure, the positions of the
-smaller monuments, and the shape of the Big Void (whose true form is unknown) are approximate.
 
 Run locally with any static server, e.g. `python3 -m http.server`, then open `http://localhost:8000/`.

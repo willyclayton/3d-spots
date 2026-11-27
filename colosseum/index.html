@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Colosseum in 3D · 3D Spots</title>
+<meta name="description" content="Explore the Colosseum in 3D: cut it open, look down into the hypogeum, and see it as built around 90 CE or as it stands today.">
+<meta property="og:title" content="Colosseum in 3D">
+<meta property="og:description" content="An explorable 3D model of the Flavian Amphitheatre and its valley in Rome.">
+<meta property="og:image" content="thumb.jpg">
+<meta name="theme-color" content="#16120d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='32' cy='36' rx='29' ry='22' fill='%23c9a26a'/%3E%3Cellipse cx='32' cy='38' rx='17' ry='11' fill='%23604a30'/%3E%3Cpath d='M3 34v-8l58 0v8' fill='%23e0c08a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../shared/ui.css">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "../vendor/three/three.module.js",
+  "three/addons/": "../vendor/three/addons/",
+  "polygon-clipping": "../vendor/polygon-clipping.js"
+} }
+</script>
+</head>
+<body>
+<div id="app" aria-label="3D view of the Colosseum"></div>
+<div id="vignette" aria-hidden="true"></div>
+<div id="labels" aria-label="Map labels"></div>
+
+<header class="topbar">
+  <a class="brand" href="../" title="All 3D Spots">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 60 56H4z" fill="currentColor" opacity=".9"/><path d="M32 6 46 56H32z" fill="#000" opacity=".25"/></svg>
+    <span>3D Spots</span>
+  </a>
+  <span class="crumb">/</span>
+  <h1>Colosseum</h1>
+  <span class="era-badge" id="eraBadge">Today</span>
+</header>
+
+<button class="fab" id="placesBtn" aria-controls="places" aria-expanded="false">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+  <span>Places</span>
+</button>
+
+<aside id="places" class="panel" aria-label="Places">
+  <div class="panel-head">
+    <div class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 4.2 12.6l5.1 5.1 1.4-1.4-5.1-5.1A7 7 0 0 0 10 3zm0 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10z"/></svg>
+      <input id="search" type="search" placeholder="Search places" autocomplete="off" aria-label="Search places">
+    </div>
+    <button class="icon-btn" id="placesClose" aria-label="Hide places" title="Hide places">×</button>
+  </div>
+  <div id="placeList" class="place-list" role="list"></div>
+</aside>
+
+<aside id="info" class="panel hidden" aria-live="polite" aria-label="Place details">
+  <button class="icon-btn info-close" id="infoClose" aria-label="Close">×</button>
+  <div class="kicker" id="infoKicker"></div>
+  <h2 id="infoTitle"></h2>
+  <p id="infoDesc"></p>
+  <div class="info-more">
+    <p id="infoMore"></p>
+    <dl id="infoFacts" class="facts"></dl>
+  </div>
+  <div class="actions" id="infoActions"></div>
+</aside>
+
+<div id="sectionBar" class="subbar hidden" role="group" aria-label="Cutaway controls">
+  <label class="field hidden">
+    <span>Building</span>
+    <select id="secTarget">
+      <option value="amph">Amphitheatre</option>
+    </select>
+  </label>
+  <div class="seg small" id="secPlane" role="radiogroup" aria-label="Cut direction">
+    <button data-v="x" class="on" role="radio" aria-checked="true" title="Cut across the building, seen from the east">Across</button>
+    <button data-v="z" role="radio" aria-checked="false" title="Cut along the long axis, seen from the south">Along</button>
+  </div>
+  <label class="field grow">
+    <span id="secOffsetLabel">Position</span>
+    <input id="secOffset" type="range" min="-100" max="100" step="0.1" value="0" aria-label="Cut position">
+  </label>
+  <button class="chip" id="secFlip" title="Look from the other side">Flip side</button>
+  <button class="chip" id="secView" title="Point the camera at the cut">Face cut</button>
+</div>
+
+<nav id="toolbar" aria-label="Tools">
+  <button class="tool tour-btn" id="tourBtn" title="Guided tour of everything (T)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 14.5v-9l7 4.5-7 4.5z"/></svg><span>Tour</span></button>
+  <span class="div" aria-hidden="true"></span>
+  <div class="seg" id="modeSeg" role="radiogroup" aria-label="Navigation mode">
+    <button data-v="orbit" class="on" role="radio" aria-checked="true" title="Orbit and fly around (O)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4C6 4 2 7.6 2 12s4 8 10 8 10-3.6 10-8-4-8-10-8zm0 2c4.6 0 8 2.7 8 6s-3.4 6-8 6-8-2.7-8-6 3.4-6 8-6zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg><span>Explore</span></button>
+    <button data-v="fly" role="radio" aria-checked="false" title="Fly freely over the whole site (G)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 2.5 2.5 10l7 2.6L12 20l3.4-6.3 6.1-11.2zm-11 9.3 7.2-5.6-4.9 7.5-.7 2.5-1.6-4.4z"/></svg><span>Fly</span></button>
+    <button data-v="walk" role="radio" aria-checked="false" title="Walk on foot (V)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.3 7.3 0 0 0 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg><span>Walk</span></button>
+  </div>
+  <span class="div" aria-hidden="true"></span>
+  <button class="tool" id="secBtn" aria-pressed="false" title="Cut the building open (C)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 1 21h22L12 2zm0 4.2L19.5 19H12V6.2z"/></svg><span>Cutaway</span></button>
+  <button class="tool desk-only" id="xrayBtn" aria-pressed="false" title="See through the stone (X)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 1 21h22L12 2zm0 3.8L20 19H4l8-13.2zM11 11h2v6h-2z" /></svg><span>X-ray</span></button>
+  <span class="div" aria-hidden="true"></span>
+  <div class="seg" id="eraSeg" role="radiogroup" aria-label="Era">
+    <button data-v="today" class="on" role="radio" aria-checked="true" title="As it is today (E)">Today</button>
+    <button data-v="built" role="radio" aria-checked="false" title="As built, around 90 CE (E)">90 CE</button>
+  </div>
+  <button class="tool era-btn" id="eraBtn" aria-pressed="false" title="Switch between today and 90 CE">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12v5l-4 5 4 5v5H6v-5l4-5-4-5V2zm2 2v2.3l4 5 4-5V4H8zm4 9.7-4 5V20h8v-1.3l-4-5z"/></svg><span id="eraBtnLabel">90 CE</span></button>
+  <span class="div" aria-hidden="true"></span>
+  <label class="sun" title="Time of day">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input id="timeSlider" type="range" min="6" max="18" step="0.05" value="15.5" aria-label="Time of day">
+    <output id="timeOut">15:30</output>
+  </label>
+  <span class="div" aria-hidden="true"></span>
+  <button class="tool icon" id="labelsBtn" aria-pressed="true" title="Show labels (L)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h12l6 7-6 7H3V5zm2 2v10h9.1l4.3-5-4.3-5H5z"/></svg><span class="sr">Labels</span></button>
+  <button class="tool icon" id="settingsBtn" aria-pressed="false" aria-controls="settings" title="Settings and more">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1L11 21h4l.4-2.9c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5-2.2-1.6zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg><span class="more-t">More</span></button>
+  <button class="tool icon" id="helpBtn" title="Help (H)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 17h-2v-2h2v2zm2.1-7.8-.9.9c-.7.7-1.2 1.3-1.2 2.9h-2v-.5c0-1.1.4-2.1 1.2-2.8l1.2-1.3a2 2 0 1 0-3.4-1.4H8a4 4 0 1 1 8 0c0 .9-.4 1.6-.9 2.2z"/></svg><span class="sr">Help</span></button>
+</nav>
+
+<div id="settings" class="panel popover hidden" aria-label="Settings">
+  <h3>More</h3>
+  <div class="mobile-only">
+    <label class="row"><span>Time of day</span>
+      <span class="sun-m"><input id="timeSlider2" type="range" min="6" max="18" step="0.05" value="15.5" aria-label="Time of day"><output id="timeOut2">15:30</output></span>
+    </label>
+    <label class="row check"><input type="checkbox" id="labelsChk" checked> <span>Show labels</span></label>
+    <label class="row check"><input type="checkbox" id="xrayChk"> <span>X-ray: see through the stone</span></label>
+    <button class="chip" id="helpBtn2">How to navigate</button>
+    <hr>
+  </div>
+  <label class="row"><span>Quality</span>
+    <select id="qualitySel"><option value="low">Low (fastest)</option><option value="medium">Medium</option><option value="high">High</option></select>
+  </label>
+  <p class="hint">Changing quality reloads the scene.</p>
+  <label class="row"><span>Date</span><input type="date" id="dateInput"></label>
+  <button class="chip" id="nowBtn">Sun at the current time in Rome</button>
+</div>
+
+<div id="compass" title="Click to face north" role="button" aria-label="Compass: click to face north" tabindex="0">
+  <div class="rose"><span class="n">N</span><span class="e">E</span><span class="s">S</span><span class="w">W</span><i></i></div>
+</div>
+
+<button id="homeBtn" class="round-btn" title="Whole site (Home)" aria-label="Fly back to the whole site">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3L12 3z"/></svg>
+</button>
+
+<div id="walkHud" class="hidden">
+  <div class="crosshair" aria-hidden="true"></div>
+  <div class="walk-hint" id="walkHint"></div>
+  <div class="joystick" id="joystick" aria-hidden="true"><div class="knob"></div></div>
+  <div class="climb" aria-label="Altitude">
+    <button id="flyUp" aria-label="Climb">▲</button>
+    <button id="flyDown" aria-label="Descend">▼</button>
+  </div>
+  <div class="where" id="whereTag"></div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<section id="tour" class="panel tour hidden" aria-label="Guided tour" aria-live="polite">
+  <div class="tour-top">
+    <span class="tour-step" id="tourStep" title="Guided tour">1 / 22</span>
+    <h2 id="tourTitle"></h2>
+    <button class="icon-btn" id="tourExit" aria-label="End tour" title="End tour">×</button>
+  </div>
+  <p id="tourText"></p>
+  <div class="tour-bar" aria-hidden="true"><i id="tourProg"></i></div>
+  <div class="tour-ctl">
+    <button id="tourPrev">‹ Back</button>
+    <button id="tourPlay" class="primary">Pause</button>
+    <button id="tourNext">Next ›</button>
+  </div>
+</section>
+
+<div id="welcome" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+  <div class="modal-card welcome-card">
+    <h2 id="welcomeTitle">Welcome to the Colosseum</h2>
+    <p>Fly round the amphitheatre, cut it open and look down into the arena’s basement.</p>
+    <div class="welcome-actions">
+      <button class="big primary" id="welcomeTour">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 14.5v-9l7 4.5-7 4.5z"/></svg>
+        <span><b>Guided tour</b><small>5 minutes, everything</small></span>
+      </button>
+      <button class="big" id="welcomeExplore">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4C6 4 2 7.6 2 12s4 8 10 8 10-3.6 10-8-4-8-10-8zm0 2c4.6 0 8 2.7 8 6s-3.4 6-8 6-8-2.7-8-6 3.4-6 8-6zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+        <span><b>Explore</b><small>On your own</small></span>
+      </button>
+    </div>
+    <button class="linkish" id="welcomeHelp">How to navigate</button>
+  </div>
+</div>
+
+<div id="help" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="modal-card">
+    <button class="icon-btn modal-close" id="helpClose" aria-label="Close help">×</button>
+    <h2 id="helpTitle">Exploring the Colosseum</h2>
+    <div class="help-grid">
+      <section>
+        <h4>Explore</h4>
+        <ul>
+          <li><b>Drag</b> to turn · <b>right-drag</b> or <b>two fingers</b> to pan</li>
+          <li><b>Scroll</b> or <b>pinch</b> to zoom · <b>W A S D</b> to pan</li>
+          <li><b>Double-click</b> or <b>double-tap</b> to fly to a spot</li>
+          <li>Tap a <b>label</b> or open <b>Places</b></li>
+        </ul>
+      </section>
+      <section>
+        <h4>Fly</h4>
+        <ul>
+          <li><b>W A S D</b> to fly, <b>Q / E</b> down and up, <b>Shift</b> faster</li>
+          <li><b>Drag</b> to look · <b>scroll</b> to glide</li>
+          <li>Touch: joystick, drag to look, <b>▲ ▼</b> to climb</li>
+        </ul>
+      </section>
+      <section>
+        <h4>Walk</h4>
+        <ul>
+          <li><b>W A S D</b> to walk, <b>Shift</b> to run</li>
+          <li><b>Click</b> to look with the mouse, <b>Esc</b> to release</li>
+          <li>Touch: joystick, drag to look</li>
+        </ul>
+      </section>
+      <section>
+        <h4>Keys</h4>
+        <ul class="keys">
+          <li><kbd>O</kbd> explore · <kbd>G</kbd> fly · <kbd>V</kbd> walk</li>
+          <li><kbd>C</kbd> cutaway · <kbd>X</kbd> x-ray · <kbd>B</kbd> era</li>
+          <li><kbd>T</kbd> tour · <kbd>L</kbd> labels · <kbd>H</kbd> help</li>
+        </ul>
+      </section>
+    </div>
+    <p class="note">Hills from SRTM elevation data, the valley floor sculpted. Overall dimensions follow published surveys; the plan is drawn as a four-centred oval, and the orientation, storey heights, seating profile and basement layout are approximate.</p>
+  </div>
+</div>
+
+<div id="loading">
+  <div class="load-card">
+    <svg class="load-logo" viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="36" rx="29" ry="22" fill="#e0a54b"/><ellipse cx="32" cy="38" rx="17" ry="11" fill="#000" opacity=".35"/></svg>
+    <h2>Colosseum</h2>
+    <div class="bar"><i id="loadBar"></i></div>
+    <p id="loadMsg">Loading…</p>
+  </div>
+</div>
+
+<noscript><p class="noscript">This 3D map needs JavaScript and WebGL.</p></noscript>
+<script>
+  window.__setProgress = function (p, msg) {
+    var b = document.getElementById('loadBar'); if (b) b.style.width = Math.round(p * 100) + '%';
+    var m = document.getElementById('loadMsg'); if (m && msg) m.textContent = msg;
+  };
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

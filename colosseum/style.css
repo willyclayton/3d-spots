@@ -1,0 +1,10 @@
+/* Colosseum: accents for label and list categories */
+.k-pyramid { --kc: #e3a94f; }
+.k-chamber { --kc: #ff8d5c; }
+.k-passage { --kc: #79c4ff; }
+.k-tomb { --kc: #b9a2ff; }
+.k-temple { --kc: #74d6a8; }
+.k-monument { --kc: #ffd27a; }
+.k-feature { --kc: #efe2c8; }
+.k-modern { --kc: #9aa6b2; }
+.lbl.void .pin { background: #7fd4ff; box-shadow: 0 0 0 2px #cdeeff, 0 0 12px #7fd4ff; }

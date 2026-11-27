@@ -14,7 +14,7 @@ at 10 m per pixel):
 World frame: x = east, z = south, origin at the site's (lat0, lon0).
 The heightmap covers [cx - size/2, cx + size/2] x [cz - size/2, cz + size/2].
 
-Usage:  python3 tools/gen_terrain.py <site> [cache_dir]      (site: giza)
+Usage:  python3 tools/gen_terrain.py <site> [cache_dir]      (site: giza, colosseum)
 """
 import math, os, sys, urllib.request
 import numpy as np
@@ -38,6 +38,13 @@ SITES = {
         ],
         # smoothing radii (m), and the height (m ASL) below which the heavy one takes over
         smooth=dict(light=18, heavy=45, low=34.0, blend=8.0),
+    ),
+    "colosseum": dict(
+        lat0=41.89021, lon0=12.49223,            # centre of the arena
+        cx=0.0, cz=0.0, size=4096.0, res=512,
+        footprints=[(0.0, 0.0, 94 + 30)],        # the amphitheatre itself
+        open=60,                                  # metres: wider than a city block
+        smooth=dict(light=20, heavy=40, low=-100.0, blend=8.0),
     ),
 }
 
@@ -91,6 +98,25 @@ def bilinear(img, px, py):
     return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
 
 
+def grey_open(img, r_px):
+    """Morphological opening with a disc: removes bumps narrower than the
+    disc (buildings, tree canopies), keeps the ground between them."""
+    if r_px < 1:
+        return img
+    r = int(round(r_px))
+    offs = [(dy, dx) for dy in range(-r, r + 1) for dx in range(-r, r + 1) if dx * dx + dy * dy <= r * r]
+
+    def filt(a, f):
+        p = np.pad(a, r, mode="edge")
+        h, w = a.shape
+        out = None
+        for dy, dx in offs:
+            v = p[r + dy:r + dy + h, r + dx:r + dx + w]
+            out = v.copy() if out is None else f(out, v)
+        return out
+    return filt(filt(img, np.minimum), np.maximum)
+
+
 def gblur(img, sigma_px):
     if sigma_px <= 0:
         return img
@@ -136,6 +162,10 @@ def main():
             wgt = np.clip((den - 0.15) / 0.35, 0, 1)
             final = final * (1 - wgt) + est * wgt
     h = np.where(mask > 0.5, h, final)
+
+    # in a city the radar saw rooftops: take the ground between the buildings
+    if S.get("open"):
+        h = grey_open(h, S["open"] / step)
 
     # smooth: light everywhere, heavy on low ground (modern city noise)
     sm = S["smooth"]

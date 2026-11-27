@@ -8,6 +8,7 @@
 //               whose floor meets the ceiling below form one open space.
 //   footprints: rects of solid structures: only volumes can be entered there.
 //   obstacles:  rects that block walking on the terrain (walls, tombs...).
+//   blockedAt:  optional (x, z) -> bool, for shapes that are not rectangles.
 
 const R = 0.24;          // body radius
 const STEP_UP = 1.0;     // highest step one can climb (the Great Step is 0.9 m)
@@ -19,6 +20,7 @@ export class WalkWorld {
     this.volumes = [];
     this.obstacles = [];
     this.footprints = [];
+    this.blockedAt = null;
   }
 
   setVolumes(list) { this.volumes = list.slice(); }
@@ -48,6 +50,7 @@ export class WalkWorld {
     let blocked = false;
     for (const f of this.footprints) if (x > f.x0 && x < f.x1 && z > f.z0 && z < f.z1) { blocked = true; break; }
     if (!blocked) for (const o of this.obstacles) if (x > o.x0 && x < o.x1 && z > o.z0 && z < o.z1) { blocked = true; break; }
+    if (!blocked && this.blockedAt && this.blockedAt(x, z)) blocked = true;
     if (!blocked) out.push({ floor: this.terrain.heightAt(x, z), ceiling: Infinity, inside: null });
     return out;
   }
