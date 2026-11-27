@@ -42,10 +42,24 @@ export function dayLength(dateLocalMidnightUTC, lat, lon, utcOffset) {
   return { rise: rise ?? 6, set: set ?? 18 };
 }
 
+// Hours ahead of UTC in an IANA time zone at a given instant (daylight saving
+// included), or null if the browser cannot tell.
+export function zoneOffset(timeZone, date) {
+  try {
+    const f = new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
+    const p = Object.fromEntries(f.formatToParts(date).map((x) => [x.type, x.value]));
+    const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
+    return Math.round((asUTC - Math.floor(date.getTime() / 60000) * 60000) / 900000) / 4;
+  } catch (e) { return null; }
+}
+
 export class SkySystem {
-  constructor(renderer, scene, { lat, lon, utcOffset = 0, shadowSize = 4096 } = {}) {
+  // timeZone (IANA name) sets the clock for each date, daylight saving
+  // included; utcOffset is the fallback when the browser cannot tell.
+  constructor(renderer, scene, { lat, lon, utcOffset = 0, timeZone = null, shadowSize = 4096 } = {}) {
     this.renderer = renderer; this.scene = scene;
     this.lat = lat; this.lon = lon; this.utcOffset = utcOffset;
+    this.timeZone = timeZone; this.baseOffset = utcOffset;
     this.sky = new Sky();
     this.sky.scale.setScalar(400000);
     this.sky.frustumCulled = false;
@@ -87,9 +101,26 @@ export class SkySystem {
     this.envDay = 0.46;
     this.date = new Date();
     this.hours = 15.5;
+    this.updateOffset();
   }
 
-  setDate(d) { this.date = d; this.apply(); }
+  // the site's UTC offset on the current date (at local noon)
+  updateOffset() {
+    if (!this.timeZone) return;
+    const d = this.date;
+    const o = zoneOffset(this.timeZone, new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 12 - this.baseOffset)));
+    this.utcOffset = o ?? this.baseOffset;
+  }
+
+  // the date and time (hours) on the clock at the site right now
+  siteNow() {
+    const now = new Date();
+    const o = this.timeZone ? zoneOffset(this.timeZone, now) ?? this.baseOffset : this.baseOffset;
+    const t = new Date(now.getTime() + o * 3600000);
+    return { date: new Date(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate()), hours: t.getUTCHours() + t.getUTCMinutes() / 60 };
+  }
+
+  setDate(d) { this.date = d; this.updateOffset(); this.apply(); }
 
   setLocalTime(hours) { this.hours = hours; this.apply(); }
 

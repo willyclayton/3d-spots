@@ -1,6 +1,7 @@
-// Points of interest.  Interior places use pyramid-local coordinates
-// (x east, y above the pyramid base, z south); exterior places use world
-// coordinates, with y = null meaning "on the ground".
+// Points of interest.  Interior places name their pyramid (struct) and use
+// pyramid-local coordinates (x east, y above the pyramid base, z south);
+// exterior places use world coordinates, with y = null meaning "on the
+// ground".
 // prio: 1 = always shown, 2 = shown when closer, 3 = detail.
 
 export const GROUPS = [
@@ -60,103 +61,103 @@ export const PLACES = [
 
   // ---------------------------------------------------- inside Khufu ------
   {
-    id: 'k-entrance', name: 'Original entrance', group: 'khufu', kind: 'passage', prio: 2, pyr: 'khufu', exterior: true,
+    id: 'k-entrance', name: 'Original entrance', group: 'khufu', kind: 'passage', prio: 2, struct: 'khufu', exterior: true,
     local: [7.29, 19.5, -99], view: { dist: 30, yaw: 12, pitch: 10 },
     desc: 'The true entrance is 17 m above the ground on the north face, 7.3 m east of the centre line. Two pairs of huge limestone gable stones (“chevrons”) above it spread the weight of the masonry. In antiquity it was hidden behind the casing.',
     facts: [['Height above base', '17 m'], ['Offset', '7.29 m east of centre']],
   },
   {
-    id: 'k-robbers', name: 'Al-Ma’mun’s tunnel (visitor entrance)', group: 'khufu', kind: 'passage', prio: 2, pyr: 'khufu', exterior: true, era: 'today',
+    id: 'k-robbers', name: 'Al-Ma’mun’s tunnel (visitor entrance)', group: 'khufu', kind: 'passage', prio: 2, struct: 'khufu', exterior: true, era: 'today',
     local: [-0.6, 8.5, -106], view: { dist: 28, yaw: 345, pitch: 8 }, walk: { local: [-0.6, 7.2, -100], yaw: 180 },
     desc: 'Tradition says the Caliph al-Ma’mun’s workmen forced this tunnel around 820 CE. Digging blindly into the masonry, they broke into the passage system just above the granite plugs. Visitors still enter the pyramid this way.',
     facts: [['Dug', 'c. 820 CE (traditionally)'], ['Length', 'about 35 m']],
   },
   {
-    id: 'k-desc', name: 'Descending Passage', group: 'khufu', kind: 'passage', prio: 2, pyr: 'khufu',
+    id: 'k-desc', name: 'Descending Passage', group: 'khufu', kind: 'passage', prio: 2, struct: 'khufu',
     local: [7.29, -6, -55], view: { dist: 40, yaw: 90, pitch: 5 }, walk: { local: [7.29, 2.2, -72], yaw: 180 },
     desc: 'A straight shaft 1.05 m wide and 1.2 m high running down at 26° 31′ for about 105 m, first through the masonry and then deep into the bedrock. It is remarkably straight: Petrie found its built section deviated from a true line by well under a centimetre.',
     facts: [['Length', 'about 105 m'], ['Angle', '26° 31′'], ['Size', '1.05 × 1.2 m']],
   },
   {
-    id: 'k-subterranean', name: 'Subterranean Chamber', group: 'khufu', kind: 'chamber', prio: 1, pyr: 'khufu',
+    id: 'k-subterranean', name: 'Subterranean Chamber', group: 'khufu', kind: 'chamber', prio: 1, struct: 'khufu',
     local: [1.5, -28, 5.5], view: { dist: 30, yaw: 90, pitch: 8 }, walk: { local: [6.5, -29.9, 3.0], yaw: 270 },
     desc: 'Cut 30 m below the pyramid into the bedrock and never finished: the floor is still rough with blocks of rock left standing. A pit in the floor and a dead-end passage leading south suggest the plan changed while it was being dug.',
     facts: [['Size', 'about 14 × 8.3 m, 3.5 m high'], ['Depth', 'about 30 m below the base']],
   },
   {
-    id: 'k-plugs', name: 'Granite plugs', group: 'khufu', kind: 'feature', prio: 3, pyr: 'khufu',
+    id: 'k-plugs', name: 'Granite plugs', group: 'khufu', kind: 'feature', prio: 3, struct: 'khufu',
     local: [7.29, 7.0, -73.5], view: { dist: 16, yaw: 90, pitch: 10 },
     desc: 'Three granite blocks still seal the lower end of the Ascending Passage, exactly as they were slid down after the burial. They are why the robbers had to tunnel around them.',
     facts: [['Material', 'red granite'], ['Number', '3, about 1.6 m long each']],
   },
   {
-    id: 'k-asc', name: 'Ascending Passage', group: 'khufu', kind: 'passage', prio: 2, pyr: 'khufu',
+    id: 'k-asc', name: 'Ascending Passage', group: 'khufu', kind: 'passage', prio: 2, struct: 'khufu',
     local: [7.29, 14, -57], view: { dist: 36, yaw: 90, pitch: 8 }, walk: { local: [7.29, 8.6, -68.5], yaw: 180 },
     desc: 'Rising at 26° from the plugs to the foot of the Grand Gallery, this low passage forces visitors to stoop for nearly 40 m. Its lower part passes through three “girdle stones”, blocks set across the passage.',
     facts: [['Length', 'about 39 m'], ['Angle', '26° 2′'], ['Size', '1.05 × 1.2 m']],
   },
   {
-    id: 'k-gallery', name: 'Grand Gallery', group: 'khufu', kind: 'chamber', prio: 1, pyr: 'khufu',
+    id: 'k-gallery', name: 'Grand Gallery', group: 'khufu', kind: 'chamber', prio: 1, struct: 'khufu',
     local: [7.29, 35, -21], view: { dist: 48, yaw: 90, pitch: 6 }, walk: { local: [7.29, 24.0, -37.0], yaw: 180 },
     desc: 'One of the most remarkable spaces in ancient architecture: a sloping hall 46.7 m long and 8.6 m high whose walls step inward in seven corbelled courses, each projecting about 7.5 cm, to a roof only 1 m wide. Ramps run along both sides, with slots that may once have held timber beams.',
     facts: [['Length', '46.7 m'], ['Height', '8.6 m'], ['Width', '2.1 m at the floor, 1 m at the roof'], ['Corbels', '7 courses']],
   },
   {
-    id: 'k-queen', name: 'Queen’s Chamber', group: 'khufu', kind: 'chamber', prio: 1, pyr: 'khufu',
+    id: 'k-queen', name: 'Queen’s Chamber', group: 'khufu', kind: 'chamber', prio: 1, struct: 'khufu',
     local: [4.94, 24.8, 0], view: { dist: 26, yaw: 90, pitch: 8 }, walk: { local: [6.0, 21.25, -1.8], yaw: 200 },
     desc: 'Despite its name it was never a queen’s burial; Arab explorers named it for its gabled roof, used for women’s tombs in their time. It sits exactly on the pyramid’s east–west centre line. A tall corbelled niche is cut into the east wall.',
     facts: [['Size', '5.75 × 5.23 m'], ['Height', '6.23 m to the ridge'], ['Floor', '21.2 m above the base']],
   },
   {
-    id: 'k-qshafts', name: 'Queen’s Chamber shafts', group: 'khufu', kind: 'feature', prio: 3, pyr: 'khufu',
+    id: 'k-qshafts', name: 'Queen’s Chamber shafts', group: 'khufu', kind: 'feature', prio: 3, struct: 'khufu',
     local: [4.94, 55, 40], view: { dist: 80, yaw: 90, pitch: 5 },
     desc: 'Two 20 cm shafts found in 1872 by Waynman Dixon rise about 60 m into the masonry and stop. In 1993 the robot Upuaut-2 found a small stone slab with two copper pins blocking the southern one (“Gantenbrink’s door”); in 2011 the Djedi robot filmed red-painted marks behind it.',
     facts: [['Found', '1872'], ['Section', 'about 20 × 20 cm'], ['Blocked at', 'about 63 m']],
   },
   {
-    id: 'k-well', name: 'Well shaft and grotto', group: 'khufu', kind: 'passage', prio: 3, pyr: 'khufu',
+    id: 'k-well', name: 'Well shaft and grotto', group: 'khufu', kind: 'passage', prio: 3, struct: 'khufu',
     local: [6.4, 0, -38], view: { dist: 40, yaw: 90, pitch: 5 },
     desc: 'A rough, steep service shaft linking the foot of the Grand Gallery to the lower Descending Passage, about 60 m long. It may have been the escape route for the workmen who released the granite plugs. Part way down it passes through a natural cavity, the Grotto.',
     facts: [['Length', 'about 60 m'], ['Purpose', 'probably a workers’ escape route']],
   },
   {
-    id: 'k-ante', name: 'Antechamber (portcullis chamber)', group: 'khufu', kind: 'chamber', prio: 3, pyr: 'khufu',
+    id: 'k-ante', name: 'Antechamber (portcullis chamber)', group: 'khufu', kind: 'chamber', prio: 3, struct: 'khufu',
     local: [7.29, 45.2, 4.3], view: { dist: 16, yaw: 90, pitch: 8 }, walk: { local: [7.29, 43.05, 3.2], yaw: 180 },
     desc: 'A small granite-lined room with grooves for three portcullis slabs that were lowered to block the way to the King’s Chamber. A double slab, the “granite leaf”, still hangs in the first groove.',
     facts: [['Length', '2.98 m'], ['Slots', '3 portcullises']],
   },
   {
-    id: 'k-king', name: 'King’s Chamber', group: 'khufu', kind: 'chamber', prio: 1, pyr: 'khufu',
+    id: 'k-king', name: 'King’s Chamber', group: 'khufu', kind: 'chamber', prio: 1, struct: 'khufu',
     local: [3.2, 47, 11], view: { dist: 30, yaw: 90, pitch: 8 }, walk: { local: [6.6, 43.05, 9.0], yaw: 250 },
     desc: 'The burial chamber, lined entirely with red Aswan granite and roofed with nine granite beams of 25–80 tonnes each. It measures exactly 20 × 10 royal cubits. The lidless granite sarcophagus at the west end is slightly wider than the passage, so it must have been placed during construction.',
     facts: [['Size', '10.47 × 5.23 m, 5.84 m high'], ['Floor', '43 m above the base'], ['Material', 'red granite']],
   },
   {
-    id: 'k-sarc', name: 'Khufu’s sarcophagus', group: 'khufu', kind: 'feature', prio: 3, pyr: 'khufu',
+    id: 'k-sarc', name: 'Khufu’s sarcophagus', group: 'khufu', kind: 'feature', prio: 3, struct: 'khufu',
     local: [-0.8, 44.3, 11], view: { dist: 9, yaw: 120, pitch: 20 },
     desc: 'A plain box of red granite, hollowed out with copper saws and abrasive sand. It was already empty and lidless when the first recorded explorers reached it.',
     facts: [['Size', '2.28 × 0.98 × 1.05 m']],
   },
   {
-    id: 'k-kshafts', name: 'King’s Chamber shafts', group: 'khufu', kind: 'feature', prio: 3, pyr: 'khufu',
+    id: 'k-kshafts', name: 'King’s Chamber shafts', group: 'khufu', kind: 'feature', prio: 3, struct: 'khufu',
     local: [2.6, 64, -25], view: { dist: 90, yaw: 90, pitch: 5 },
     desc: 'Two narrow shafts run from the King’s Chamber all the way to the outer faces. The southern one points roughly to the stars of Orion’s belt as they were in Khufu’s time, the northern one towards the circumpolar stars; whether they were for ventilation or for the king’s soul is debated.',
     facts: [['North shaft', 'about 32° 36′'], ['South shaft', 'about 45°']],
   },
   {
-    id: 'k-relieving', name: 'Relieving chambers', group: 'khufu', kind: 'chamber', prio: 2, pyr: 'khufu',
+    id: 'k-relieving', name: 'Relieving chambers', group: 'khufu', kind: 'chamber', prio: 2, struct: 'khufu',
     local: [3.2, 57, 11], view: { dist: 36, yaw: 90, pitch: 10 },
     desc: 'Five low compartments above the King’s Chamber, separated by granite beams and capped by a pointed limestone roof, spread the enormous load of the pyramid. Nathaniel Davison found the lowest in 1765; Howard Vyse blasted his way into the other four in 1837 and found painted workers’ graffiti naming the gangs, including Khufu’s cartouche.',
     facts: [['Compartments', '5'], ['Found', '1765 and 1837']],
   },
   {
-    id: 'k-bigvoid', name: 'Big Void (ScanPyramids, 2017)', group: 'khufu', kind: 'feature', prio: 2, pyr: 'khufu', void: true,
+    id: 'k-bigvoid', name: 'Big Void (ScanPyramids, 2017)', group: 'khufu', kind: 'feature', prio: 2, struct: 'khufu', void: true,
     local: [7.29, 62, -20], view: { dist: 60, yaw: 90, pitch: 10 },
     desc: 'In 2017 the ScanPyramids team used cosmic-ray muons to detect a large void above the Grand Gallery, at least 30 m long. Its exact shape, slope and purpose are unknown; the volume shown here is only indicative.',
     facts: [['Detected', '2017, muon imaging'], ['Length', 'at least 30 m'], ['Status', 'unexplored']],
   },
   {
-    id: 'k-nfc', name: 'North Face Corridor (2023)', group: 'khufu', kind: 'passage', prio: 3, pyr: 'khufu',
+    id: 'k-nfc', name: 'North Face Corridor (2023)', group: 'khufu', kind: 'passage', prio: 3, struct: 'khufu',
     local: [7.29, 26, -87], view: { dist: 22, yaw: 90, pitch: 6 },
     desc: 'A hidden corridor about 9 m long and 2 m wide behind the chevron stones over the entrance, detected by muon imaging and confirmed in 2023 when an endoscope was pushed through a joint. It has a gabled roof like the chevrons.',
     facts: [['Confirmed', 'March 2023'], ['Size', 'about 9 × 2.1 × 2.1 m']],
@@ -164,25 +165,25 @@ export const PLACES = [
 
   // ---------------------------------------------------- inside Khafre -----
   {
-    id: 'kh-upper', name: 'Upper entrance', group: 'khafre', kind: 'passage', prio: 3, pyr: 'khafre', exterior: true,
+    id: 'kh-upper', name: 'Upper entrance', group: 'khafre', kind: 'passage', prio: 3, struct: 'khafre', exterior: true,
     local: [6.0, 13, -96], view: { dist: 30, yaw: 12, pitch: 10 },
     desc: 'The main entrance, 11.5 m up the north face. The passage is lined with granite where it runs through the masonry and then levels out in the bedrock.',
     facts: [['Height', '11.5 m above the base'], ['Angle', 'about 26°']],
   },
   {
-    id: 'kh-lower', name: 'Lower entrance', group: 'khafre', kind: 'passage', prio: 3, pyr: 'khafre', exterior: true,
+    id: 'kh-lower', name: 'Lower entrance', group: 'khafre', kind: 'passage', prio: 3, struct: 'khafre', exterior: true,
     local: [6.0, 1, -113], view: { dist: 26, yaw: 20, pitch: 22 },
     desc: 'A second entrance cut into the pavement in front of the pyramid. Its passage dives into the rock, passes a subsidiary chamber and climbs again to join the upper passage.',
     facts: [['Angle', 'about 21° 40′']],
   },
   {
-    id: 'kh-burial', name: 'Burial chamber (Belzoni’s chamber)', group: 'khafre', kind: 'chamber', prio: 1, pyr: 'khafre',
+    id: 'kh-burial', name: 'Burial chamber (Belzoni’s chamber)', group: 'khafre', kind: 'chamber', prio: 1, struct: 'khafre',
     local: [0, 3, 0], view: { dist: 30, yaw: 90, pitch: 8 }, walk: { local: [5.0, -1.15, -1.5], yaw: 260 },
     desc: 'Cut into the bedrock and roofed with a pointed gable of huge limestone beams. When Giovanni Belzoni broke in on 2 March 1818 he found the granite sarcophagus sunk into the floor, open, with its lid broken. His name is still painted on the south wall.',
     facts: [['Size', '14.15 × 5 m, 6.83 m high'], ['Entered', '2 March 1818']],
   },
   {
-    id: 'kh-sub', name: 'Subsidiary chamber', group: 'khafre', kind: 'chamber', prio: 3, pyr: 'khafre',
+    id: 'kh-sub', name: 'Subsidiary chamber', group: 'khafre', kind: 'chamber', prio: 3, struct: 'khafre',
     local: [-2.6, -11.5, -75.3], view: { dist: 26, yaw: 90, pitch: 10 },
     desc: 'A gabled room off the lower passage, as long as Khufu’s King’s Chamber. Its purpose is unknown; it may have held burial equipment or served a ritual role.',
     facts: [['Size', 'about 10.4 × 3.1 m']],
@@ -190,25 +191,25 @@ export const PLACES = [
 
   // -------------------------------------------------- inside Menkaure -----
   {
-    id: 'mk-panel', name: 'Panelled chamber', group: 'menkaure', kind: 'chamber', prio: 3, pyr: 'menkaure',
+    id: 'mk-panel', name: 'Panelled chamber', group: 'menkaure', kind: 'chamber', prio: 3, struct: 'menkaure',
     local: [0, -8.6, -18], view: { dist: 18, yaw: 90, pitch: 10 },
     desc: 'The first decorated room in any Giza pyramid: its walls are carved with the recessed “palace façade” panelling usually found on royal tombs and false doors.',
     facts: [['Decoration', 'palace-façade panels']],
   },
   {
-    id: 'mk-ante', name: 'Antechamber', group: 'menkaure', kind: 'chamber', prio: 2, pyr: 'menkaure',
+    id: 'mk-ante', name: 'Antechamber', group: 'menkaure', kind: 'chamber', prio: 2, struct: 'menkaure',
     local: [0, -6.5, -2], view: { dist: 26, yaw: 90, pitch: 8 }, walk: { local: [0.5, -9.85, -3.2], yaw: 180 },
     desc: 'A long rock-cut hall beyond three granite portcullises. Above its north wall opens an earlier passage that was abandoned when the plan was enlarged.',
     facts: [['Size', '14.2 × 3.84 m, 4.87 m high']],
   },
   {
-    id: 'mk-niches', name: 'Chamber of the six niches', group: 'menkaure', kind: 'chamber', prio: 3, pyr: 'menkaure',
+    id: 'mk-niches', name: 'Chamber of the six niches', group: 'menkaure', kind: 'chamber', prio: 3, struct: 'menkaure',
     local: [-7.6, -12, 1], view: { dist: 16, yaw: 90, pitch: 12 },
     desc: 'A small room with four niches in its east wall and two in its south wall, perhaps for storing the king’s canopic jars or burial goods.',
     facts: [['Niches', '6']],
   },
   {
-    id: 'mk-burial', name: 'Granite burial chamber', group: 'menkaure', kind: 'chamber', prio: 1, pyr: 'menkaure',
+    id: 'mk-burial', name: 'Granite burial chamber', group: 'menkaure', kind: 'chamber', prio: 1, struct: 'menkaure',
     local: [-11, -11, -1], view: { dist: 20, yaw: 90, pitch: 10 }, walk: { local: [-10.2, -13.2, 1.5], yaw: 0 },
     desc: 'Lined with granite, with a pointed ceiling carved to imitate a barrel vault. Howard Vyse found a basalt sarcophagus decorated with palace panelling here in 1837; it was lost at sea in 1838 when the ship Beatrice sank off Spain on the way to the British Museum.',
     facts: [['Size', 'about 6.6 × 2.6 m'], ['Sarcophagus', 'lost at sea, 1838']],

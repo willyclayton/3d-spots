@@ -1,6 +1,13 @@
-// Walkable space for first-person mode: terrain outside, prisms inside the
-// pyramids, plus obstacles (pyramid footprints, tombs, temple walls, Sphinx).
-import { profileRangeAt } from './interiors/build.js';
+// Walkable space for first-person mode: the terrain outdoors, plus walkable
+// volumes (rooms, passages, stairs) and things in the way.
+//
+//   volumes:    { id, inside, x0, x1, z0, z1, base, range(x, z) -> [floor, ceiling] | null, stack? }
+//               world plan rectangle; floor and ceiling are relative to base.
+//               `inside` names the structure the volume belongs to (null for
+//               open-air things such as stairs). Volumes with the same `stack`
+//               whose floor meets the ceiling below form one open space.
+//   footprints: rects of solid structures: only volumes can be entered there.
+//   obstacles:  rects that block walking on the terrain (walls, tombs...).
 
 const R = 0.24;          // body radius
 const STEP_UP = 1.0;     // highest step one can climb (the Great Step is 0.9 m)
@@ -9,29 +16,12 @@ const HEAD = 1.05;       // minimum headroom when crouching
 export class WalkWorld {
   constructor(terrain) {
     this.terrain = terrain;
-    this.volumes = [];   // { pyr, x0..z1 world plan, floor(x,z), ceil(x,z) }
-    this.obstacles = []; // { x0, x1, z0, z1 } world rects (axis aligned)
-    this.footprints = []; // pyramid footprints (only volumes may enter)
+    this.volumes = [];
+    this.obstacles = [];
+    this.footprints = [];
   }
 
-  setInteriorVolumes(list) {
-    // list: [{ P, vols }] from interiors (pyramid-local) for the current era
-    this.volumes = [];
-    for (const { P, vols, id } of list) {
-      for (const v of vols) {
-        const o = { id: v.el.id, pyr: id, P, axis: v.axis, stack: v.el.stack };
-        if (v.axis === 'x') {
-          o.x0 = P.cx + v.a0; o.x1 = P.cx + v.a1; o.z0 = P.cz + v.smin; o.z1 = P.cz + v.smax;
-          o.range = (x, z) => profileRangeAt(v.profile, z - P.cz);
-        } else {
-          o.z0 = P.cz + v.a0; o.z1 = P.cz + v.a1; o.x0 = P.cx + v.smin; o.x1 = P.cx + v.smax;
-          o.range = (x, z) => profileRangeAt(v.profile, x - P.cx);
-        }
-        o.base = P.baseY;
-        this.volumes.push(o);
-      }
-    }
-  }
+  setVolumes(list) { this.volumes = list.slice(); }
 
   addVolume(o) { this.volumes.push(o); }
 
@@ -42,7 +32,7 @@ export class WalkWorld {
       if (x < v.x0 || x > v.x1 || z < v.z0 || z > v.z1) continue;
       const r = v.range(x, z);
       if (!r) continue;
-      raw.push({ floor: v.base + r[0], ceiling: v.base + r[1], inside: v.pyr, v });
+      raw.push({ floor: v.base + r[0], ceiling: v.base + r[1], inside: v.inside ?? null, v });
     }
     // stacked rooms (gallery corbels, niches, junctions) form one open space
     raw.sort((a, b) => a.floor - b.floor);

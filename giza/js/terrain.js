@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { fbm2, smoothstep, clamp, lerp, mulberry32 } from '../../shared/engine/util.js';
 import { SITE, PYRAMIDS, SMALL_PYRAMIDS, SPHINX, COMPLEX } from './data/site.js';
 import { TEX } from './materials.js';
+import { HeightField, gridLines, gridGeometry, skirtGeometry } from '../../shared/engine/heightfield.js';
 
 const HM = { cx: -100, cz: 350, size: 5120, res: 512 };
 const WHITE = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
@@ -22,20 +23,9 @@ export class Terrain {
   }
 
   async load(url) {
-    const img = await new Promise((res, rej) => {
-      const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url;
-    });
-    const cv = document.createElement('canvas');
-    cv.width = img.width; cv.height = img.height;
-    const ctx = cv.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(img, 0, 0);
-    const px = ctx.getImageData(0, 0, img.width, img.height).data;
-    const n = img.width;
-    this.data = new Float32Array(n * n);
-    for (let i = 0; i < n * n; i++) {
-      this.data[i] = (px[i * 4] * 256 + px[i * 4 + 1]) / 400 - 20 - SITE.baseASL;
-    }
-    this.res = n;
+    this.hf = await new HeightField({ cx: HM.cx, cz: HM.cz, size: HM.size, baseASL: SITE.baseASL }).load(url);
+    this.data = this.hf.data;
+    this.res = this.hf.res;
     // Precompute flatten targets for temples that sit on natural ground
     this.pads = [];
     const P = PYRAMIDS;
@@ -56,15 +46,7 @@ export class Terrain {
   }
 
   // raw DEM (world y), bilinear
-  dem(x, z) {
-    const n = this.res, step = HM.size / n;
-    let fx = (x - (HM.cx - HM.size / 2)) / step - 0.5;
-    let fz = (z - (HM.cz - HM.size / 2)) / step - 0.5;
-    fx = clamp(fx, 0, n - 1.001); fz = clamp(fz, 0, n - 1.001);
-    const x0 = Math.floor(fx), z0 = Math.floor(fz), tx = fx - x0, tz = fz - z0;
-    const d = this.data, i = z0 * n + x0;
-    return (d[i] * (1 - tx) + d[i + 1] * tx) * (1 - tz) + (d[i + n] * (1 - tx) + d[i + n + 1] * tx) * tz;
-  }
+  dem(x, z) { return this.hf.at(x, z); }
 
   // Final ground height (world y) incl. sculpting and fine detail.
   heightAt(x, z, detail = true) {
@@ -144,51 +126,11 @@ export class Terrain {
     const fine = quality === 'low' ? 7 : quality === 'medium' ? 5 : 3.6;
     const xs = gridLines(-2560, 2380, -1050, 760, fine);
     const zs = gridLines(-2130, 2840, -520, 1240, fine);
-    const nx = xs.length, nz = zs.length;
-    const pos = new Float32Array(nx * nz * 3);
-    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
-      const k = (j * nx + i) * 3;
-      pos[k] = xs[i]; pos[k + 2] = zs[j]; pos[k + 1] = this.heightAt(xs[i], zs[j]);
-    }
-    const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
-    let t = 0;
-    for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
-      const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
-      idx[t++] = a; idx[t++] = c; idx[t++] = b; idx[t++] = b; idx[t++] = c; idx[t++] = d;
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeVertexNormals();
-    g.computeBoundingSphere();
+    const h = (x, z) => this.heightAt(x, z);
+    const g = gridGeometry(xs, zs, h);
     this.grid = { xs, zs };
-
-    // distant skirt out to the horizon
-    const ring = [];
-    const edge = [];
-    for (let i = 0; i < nx; i++) edge.push([xs[i], zs[0]]);
-    for (let j = 1; j < nz; j++) edge.push([xs[nx - 1], zs[j]]);
-    for (let i = nx - 2; i >= 0; i--) edge.push([xs[i], zs[nz - 1]]);
-    for (let j = nz - 2; j > 0; j--) edge.push([xs[0], zs[j]]);
-    const step = Math.max(1, Math.floor(edge.length / 400));
-    const ePts = edge.filter((_, i) => i % step === 0);
-    const sp = [], si = [];
-    ePts.forEach(([x, z], i) => {
-      const y = this.heightAt(x, z);
-      const ang = Math.atan2(z - 350, x + 100);
-      const far = [x + Math.cos(ang) * 26000, z + Math.sin(ang) * 26000];
-      const mid = [x + Math.cos(ang) * 2500, z + Math.sin(ang) * 2500];
-      const yFar = x > 300 ? -42 : -10;
-      sp.push(x, y - 0.05, z, mid[0], lerp(y, yFar, 0.5), mid[1], far[0], yFar, far[1]);
-      const k = i * 3, k2 = ((i + 1) % ePts.length) * 3;
-      si.push(k, k + 1, k2, k2, k + 1, k2 + 1, k + 1, k + 2, k2 + 1, k2 + 1, k + 2, k2 + 2);
-    });
-    const sg = new THREE.BufferGeometry();
-    sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
-    sg.setIndex(si);
-    sg.computeVertexNormals();
-    const nrm = sg.attributes.normal;
-    for (let i = 0; i < nrm.count; i++) nrm.setXYZ(i, 0, 1, 0);
+    // distant skirt out to the horizon (down to the Nile valley in the east)
+    const sg = skirtGeometry(xs, zs, h, { center: [-100, 350], yFar: (x) => (x > 300 ? -42 : -10) });
     return { geometry: g, skirt: sg };
   }
 
@@ -480,18 +422,5 @@ export function closestOnPoly(c, x, z) {
 
 // causeways keep the plateau level, then drop down the escarpment
 function easeCause(t) { return smoothstep(0.0, 1.0, t) * 0.5 + t * 0.5; }
-
-function gridLines(min, max, f0, f1, fine) {
-  const out = [];
-  let x = f0;
-  const left = [];
-  let s = fine;
-  while (x > min) { s = Math.min(s * 1.12, 70); x -= s; left.push(Math.max(x, min)); if (x <= min) break; }
-  left.reverse().forEach((v) => out.push(v));
-  for (x = f0; x <= f1; x += fine) out.push(x);
-  s = fine; x = out[out.length - 1];
-  while (x < max) { s = Math.min(s * 1.12, 70); x += s; out.push(Math.min(x, max)); if (x >= max) break; }
-  return out.filter((v, i, a) => i === 0 || v - a[i - 1] > 0.01);
-}
 
 export function causewayY(c, t) { return lerp(c.y0, c.y1, easeCause(t)); }

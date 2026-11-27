@@ -9,7 +9,8 @@ export const SITE = {
   name: 'Giza Pyramid Complex',
   lat: 29.979175,
   lon: 31.134358,
-  utcOffset: 2,              // Egypt standard time (EET)
+  utcOffset: 2,              // Egypt standard time (EET); daylight saving from the time zone
+  timeZone: 'Africa/Cairo',
   baseASL: 60,               // world y = 0  <=> 60 m above sea level
 };
 

@@ -1,43 +1,62 @@
 #!/usr/bin/env python3
-"""Build giza/data/terrain.png from real elevation data.
+"""Build a spot's terrain heightmap (<site>/data/terrain.png) from real
+elevation data.
 
-Source: AWS Open Data "Terrain Tiles" (Terrarium encoding, zoom 15), which
-for this area is derived from SRTM.  The pyramids themselves show up in that
-data as blurred bumps, so their footprints are removed and in-painted; the
-app models them explicitly.  The Nile-valley floor (covered by the modern
-city) is smoothed to remove building noise.
+Source: AWS Open Data "Terrain Tiles" (Terrarium encoding, zoom 15), derived
+from SRTM.  Monuments the app models itself show up in that data as blurred
+bumps, so their footprints are removed and in-painted.  The result is then
+smoothed: lightly everywhere, heavily where the ground is low (the modern city
+on the valley floor, whose buildings the radar saw as terrain).
 
-Output encoding (8-bit RGB PNG, 512 x 512, 10 m per pixel; the source is
-SRTM at ~30 m so nothing is lost):
+Output encoding (8-bit RGB PNG, RES x RES; SRTM is ~30 m so nothing is lost
+at 10 m per pixel):
     v = round((elevation_asl_m + 20) * 400)   ->  R = v >> 8, G = v & 255
-World frame: x = east, z = south, origin = centre of Khufu's base.
-The heightmap covers [CX - 2560, CX + 2560] x [CZ - 2560, CZ + 2560].
+World frame: x = east, z = south, origin at the site's (lat0, lon0).
+The heightmap covers [cx - size/2, cx + size/2] x [cz - size/2, cz + size/2].
 
-Usage:  python3 tools/gen_terrain.py [cache_dir]
+Usage:  python3 tools/gen_terrain.py <site> [cache_dir]      (site: giza)
 """
 import math, os, sys, urllib.request
 import numpy as np
 from PIL import Image
 
-LAT0, LON0 = 29.979175, 31.134358          # Khufu centre
-M_PER_DEG_LAT = 110857.0
-M_PER_DEG_LON = 111319.5 * math.cos(math.radians(LAT0))
-CX, CZ, SIZE, RES = -100.0, 350.0, 5120.0, 512
 Z = 15
-TX = range(19215, 19221)
-TY = range(13519, 13525)
+M_PER_DEG_LAT = 110857.0
 
-# (x, z, half side incl. margin) of features to in-paint
-FOOTPRINTS = [
-    (0.0, 0.0, 115 + 45),          # Khufu
-    (-340.0, 340.0, 107.6 + 45),   # Khafre
-    (-581.0, 740.0, 52.5 + 35),    # Menkaure
-    (172.0, 40.0, 25 + 18), (172.0, 98.0, 25 + 18), (168.0, 156.0, 24 + 18),
-    (-615.0, 850.0, 22 + 15), (-680.0, 850.0, 16 + 15), (-735.0, 850.0, 16 + 15),
-]
+SITES = {
+    "giza": dict(
+        lat0=29.979175, lon0=31.134358,          # Khufu centre
+        cx=-100.0, cz=350.0, size=5120.0, res=512,
+        tiles=(range(19215, 19221), range(13519, 13525)),
+        # (x, z, half side incl. margin) of features to in-paint
+        footprints=[
+            (0.0, 0.0, 115 + 45),          # Khufu
+            (-340.0, 340.0, 107.6 + 45),   # Khafre
+            (-581.0, 740.0, 52.5 + 35),    # Menkaure
+            (172.0, 40.0, 25 + 18), (172.0, 98.0, 25 + 18), (168.0, 156.0, 24 + 18),
+            (-615.0, 850.0, 22 + 15), (-680.0, 850.0, 16 + 15), (-735.0, 850.0, 16 + 15),
+        ],
+        # smoothing radii (m), and the height (m ASL) below which the heavy one takes over
+        smooth=dict(light=18, heavy=45, low=34.0, blend=8.0),
+    ),
+}
 
 
-def fetch(cache):
+def tile_range(S):
+    """Tiles covering the heightmap square, unless the site lists them."""
+    if "tiles" in S:
+        return S["tiles"]
+    m_lon = 111319.5 * math.cos(math.radians(S["lat0"]))
+    h = S["size"] / 2 + 200
+    lats = [S["lat0"] - (S["cz"] + d) / M_PER_DEG_LAT for d in (-h, h)]
+    lons = [S["lon0"] + (S["cx"] + d) / m_lon for d in (-h, h)]
+    n = 2 ** Z
+    xs = [int((lo + 180) / 360 * n) for lo in lons]
+    ys = [int((1 - math.log(math.tan(math.radians(la)) + 1 / math.cos(math.radians(la))) / math.pi) / 2 * n) for la in lats]
+    return range(min(xs), max(xs) + 1), range(min(ys), max(ys) + 1)
+
+
+def fetch(cache, TX, TY):
     os.makedirs(cache, exist_ok=True)
     tiles = {}
     for x in TX:
@@ -55,7 +74,7 @@ def fetch(cache):
     return m
 
 
-def ll_to_mosaic(lat, lon):
+def ll_to_mosaic(lat, lon, TX, TY):
     n = 2 ** Z
     X = (lon + 180) / 360 * n
     latr = np.radians(lat)
@@ -83,20 +102,27 @@ def gblur(img, sigma_px):
 
 
 def main():
-    cache = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), ".dem-cache")
-    mosaic = fetch(cache)
+    if len(sys.argv) < 2 or sys.argv[1] not in SITES:
+        sys.exit("usage: gen_terrain.py <%s> [cache_dir]" % "|".join(SITES))
+    name = sys.argv[1]
+    S = SITES[name]
+    cache = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), ".dem-cache")
+    TX, TY = tile_range(S)
+    mosaic = fetch(cache, TX, TY)
+    CX, CZ, SIZE, RES = S["cx"], S["cz"], S["size"], S["res"]
+    m_per_deg_lon = 111319.5 * math.cos(math.radians(S["lat0"]))
     step = SIZE / RES
     coords = CX - SIZE / 2 + step * (np.arange(RES) + 0.5)
     zc = CZ - SIZE / 2 + step * (np.arange(RES) + 0.5)
     X, Zg = np.meshgrid(coords, zc)
-    lat = LAT0 - Zg / M_PER_DEG_LAT
-    lon = LON0 + X / M_PER_DEG_LON
-    px, py = ll_to_mosaic(lat, lon)
+    lat = S["lat0"] - Zg / M_PER_DEG_LAT
+    lon = S["lon0"] + X / m_per_deg_lon
+    px, py = ll_to_mosaic(lat, lon, TX, TY)
     h = bilinear(mosaic, px, py)
 
-    # in-paint pyramid bumps with normalized convolution
+    # in-paint modelled monuments with normalized convolution
     mask = np.ones_like(h)
-    for fx, fz, hs in FOOTPRINTS:
+    for fx, fz, hs in S["footprints"]:
         inside = (np.abs(X - fx) < hs) & (np.abs(Zg - fz) < hs)
         mask[inside] = 0.0
     final = None
@@ -111,17 +137,18 @@ def main():
             final = final * (1 - wgt) + est * wgt
     h = np.where(mask > 0.5, h, final)
 
-    # smooth: light everywhere, heavy on the valley floor (modern city noise)
-    light = gblur(h, 18 / step)
-    heavy = gblur(h, 45 / step)
-    w = np.clip((34.0 - heavy) / 8.0, 0, 1)        # 1 on valley floor
+    # smooth: light everywhere, heavy on low ground (modern city noise)
+    sm = S["smooth"]
+    light = gblur(h, sm["light"] / step)
+    heavy = gblur(h, sm["heavy"] / step)
+    w = np.clip((sm["low"] - heavy) / sm["blend"], 0, 1)        # 1 on low ground
     h = light * (1 - w) + heavy * w
 
     v = np.clip(np.round((h + 20.0) * 400.0), 0, 65535).astype(np.uint16)
     rgb = np.zeros((RES, RES, 3), np.uint8)
     rgb[..., 0] = v >> 8
     rgb[..., 1] = v & 255
-    out = os.path.join(os.path.dirname(__file__), "..", "giza", "data", "terrain.png")
+    out = os.path.join(os.path.dirname(__file__), "..", name, "data", "terrain.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     Image.fromarray(rgb).save(out, optimize=True)
     print("wrote", out, "range", h.min(), h.max())

@@ -68,25 +68,40 @@ An explorable model of the Giza plateau:
 
 ```
 index.html                 hub page
-shared/engine/             reusable for future spots: sky & sun, atmosphere, labels, walking, flying, geometry helpers
+shared/app/                the app every spot runs on
+  shell.js                 SpotApp: renderer, camera, Explore / Fly / Walk, flights, places, labels,
+                           cutaway / x-ray / era switches, lighting, frame loop; a spot subclasses it
+  ui.js                    toolbar, places list, info card, settings, help, compass, walk HUD
+  tour.js                  guided-tour engine
+shared/engine/             sky & sun, atmosphere, labels, walking (controller + walkable world),
+                           flying, heightfields, materials, geometry helpers
 shared/ui.css              shared UI styles
-giza/index.html            the Giza app
+giza/index.html            the Giza page
+giza/js/main.js            Giza's SpotApp subclass: config, scene build and site hooks
 giza/js/data/              site layout (site.js) and places with descriptions (places.js)
 giza/js/pyramid(s).js      block-level pyramid generator and assembly
 giza/js/interiors/         chambers & passages (one file per pyramid) + builder
 giza/js/section.js         cutaway tool
 giza/js/complex.js         temples, causeways, mastabas, boat pits, city / flood plain
 giza/js/sphinx*.js         Sphinx (signed distance field, meshed in a Web Worker)
+giza/js/tour.js            the tour's stops
 giza/data/terrain.png      processed elevation model
 giza/textures/             procedural PBR textures
 tools/                     generators for the terrain and textures (Python + numpy)
 ```
 
+### Adding a spot
+
+Make `<spot>/index.html` from `giza/index.html` (the markup the shared UI expects), subclass
+`SpotApp` in `<spot>/js/main.js` with the spot's config and `build()`, and override the hooks
+listed at the top of `shared/app/shell.js` that concern its monuments. Add the spot's
+coordinates to `SITES` in `tools/gen_terrain.py` for its heightmap.
+
 ### Regenerating data
 
 ```
-python3 tools/gen_terrain.py     # downloads SRTM tiles, writes giza/data/terrain.png
-python3 tools/gen_textures.py    # writes giza/textures/*.jpg
+python3 tools/gen_terrain.py giza    # downloads SRTM tiles, writes giza/data/terrain.png
+python3 tools/gen_textures.py        # writes giza/textures/*.jpg
 ```
 
 ### Accuracy notes

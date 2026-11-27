@@ -1,11 +1,13 @@
-// DOM wiring for the Giza page: places list, info card, toolbar, cutaway
-// bar, settings, help, compass and walk HUD.
-import { PLACES, GROUPS } from './data/places.js';
-
+// DOM wiring shared by every spot page: places list, info card, toolbar,
+// cutaway bar, settings, help, compass and walk HUD. The page supplies the
+// markup (see giza/index.html); the app supplies places, names and actions.
 const $ = (id) => document.getElementById(id);
 
 export function createUI(app, act) {
-  const { state } = app;
+  const { state, cfg } = app;
+  const PLACES = app.places, GROUPS = app.groups;
+  const key = (k) => `${cfg.id}-${k}`;
+  const eras = cfg.eras;
   const coarse = matchMedia('(pointer: coarse)').matches;
   let toastT = 0;
 
@@ -43,7 +45,7 @@ export function createUI(app, act) {
       const o = open ?? document.body.classList.contains('places-collapsed');
       document.body.classList.toggle('places-collapsed', !o);
       $('placesBtn').setAttribute('aria-expanded', String(o));
-      try { localStorage.setItem('giza-places', o ? '1' : '0'); } catch (e) { /* ignore */ }
+      try { localStorage.setItem(key('places'), o ? '1' : '0'); } catch (e) { /* ignore */ }
       return;
     }
     const o = open ?? !el.classList.contains('open');
@@ -52,7 +54,7 @@ export function createUI(app, act) {
     if (o) $('info').classList.add('hidden');
   };
   let placesPref = null;
-  try { placesPref = localStorage.getItem('giza-places'); } catch (e) { /* ignore */ }
+  try { placesPref = localStorage.getItem(key('places')); } catch (e) { /* ignore */ }
   if (placesPref !== '1') document.body.classList.add('places-collapsed');
   if (new URLSearchParams(location.search).has('noplaces')) document.body.classList.add('places-collapsed');
   if (new URLSearchParams(location.search).has('clean')) document.body.classList.add('clean');
@@ -91,7 +93,7 @@ export function createUI(app, act) {
       b.addEventListener('click', fn); acts.appendChild(b);
       return b;
     };
-    const interior = p.pyr && !p.exterior;
+    const interior = app.isInterior(p);
     const hasMore = !!(rest || (p.facts && p.facts.length));
     if (interior && (state.mode !== 'orbit' || (!state.section && !state.xray))) btn('Cutaway', () => { act.setMode('orbit'); act.selectPlace(p.id); }, 'primary');
     if (p.walk || !interior) btn(interior ? 'Walk inside' : 'Walk here', () => app.enterWalkAt(p), interior ? '' : 'primary');
@@ -168,11 +170,12 @@ export function createUI(app, act) {
     syncPlane(s.plane);
     const [lo, hi] = s.range();
     off.min = lo.toFixed(1); off.max = hi.toFixed(1); off.value = s.offset;
-    $('secOffsetLabel').textContent = s.plane === 'x' ? 'Move cut  W ↔ E' : 'Move cut  N ↔ S';
+    const L = cfg.section?.labels || { x: 'Move cut  W ↔ E', z: 'Move cut  N ↔ S' };
+    $('secOffsetLabel').textContent = L[s.plane];
   }
   $('secTarget').addEventListener('change', (e) => {
     const sel = PLACES.find((q) => q.id === state.selected);
-    if (sel && sel.pyr && sel.pyr !== e.target.value) hideInfo();
+    if (sel && sel.struct && sel.struct !== e.target.value) hideInfo();
     act.setSection(true, { target: e.target.value }); syncSectionBar();
   });
   off.addEventListener('input', () => { app.section.set({ offset: parseFloat(off.value) }); });
@@ -190,7 +193,7 @@ export function createUI(app, act) {
   const qs = $('qualitySel');
   qs.value = app.quality;
   qs.addEventListener('change', () => {
-    try { localStorage.setItem('giza-quality', qs.value); } catch (e) { /* ignore */ }
+    try { localStorage.setItem(key('quality'), qs.value); } catch (e) { /* ignore */ }
     const u = new URL(location.href); u.searchParams.set('q', qs.value); location.href = u.toString();
   });
   const di = $('dateInput');
@@ -202,17 +205,19 @@ export function createUI(app, act) {
     app.sky.setDate(new Date(y, m - 1, d));
     setDayRange();
   });
-  $('voidsChk').addEventListener('change', (e) => act.setVoids(e.target.checked));
-  $('cityChk').addEventListener('change', (e) => act.setCity(e.target.checked));
+  // site-specific on/off settings: <input type="checkbox" data-toggle="name">
+  document.querySelectorAll('input[data-toggle]').forEach((el) => {
+    const name = el.dataset.toggle;
+    if (name in state.toggles) el.checked = state.toggles[name];
+    el.addEventListener('change', () => act.setToggle(name, el.checked));
+  });
   $('nowBtn').addEventListener('click', () => {
-    const now = new Date();
-    const cairo = new Date(now.getTime() + (now.getTimezoneOffset() + 120) * 60000);
-    app.sky.setDate(new Date(cairo.getFullYear(), cairo.getMonth(), cairo.getDate()));
+    const { date, hours: h } = app.sky.siteNow();
+    app.sky.setDate(date);
     setDayRange();
-    const h = cairo.getHours() + cairo.getMinutes() / 60;
     act.setTime(Math.min(Math.max(h, parseFloat(timeSlider.min)), parseFloat(timeSlider.max)));
-    di.value = `${cairo.getFullYear()}-${String(cairo.getMonth() + 1).padStart(2, '0')}-${String(cairo.getDate()).padStart(2, '0')}`;
-    toast(h < parseFloat(timeSlider.min) || h > parseFloat(timeSlider.max) ? 'It is night in Giza — showing twilight' : 'Sun set to the current time in Giza');
+    di.value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    toast(h < parseFloat(timeSlider.min) || h > parseFloat(timeSlider.max) ? `It is night in ${cfg.name} — showing twilight` : `Sun set to the current time in ${cfg.name}`);
   });
 
   $('homeBtn').addEventListener('click', () => { app.tour?.active && app.tour.stop(); act.flyHome(); });
@@ -273,10 +278,11 @@ export function createUI(app, act) {
     },
     syncEra(e) {
       syncEraSeg(e);
-      $('eraBtnLabel').textContent = e === 'today' ? '2560 BCE' : 'Today';
+      const other = e === 'today' ? 'built' : 'today';
+      $('eraBtnLabel').textContent = eras[other].short;
       press('eraBtn', e === 'built');
-      $('eraBadge').textContent = e === 'today' ? 'Today' : 'As built, c. 2560 BCE';
-      toast(e === 'today' ? 'Today' : 'As built, c. 2560 BCE');
+      $('eraBadge').textContent = eras[e].long;
+      toast(eras[e].long);
     },
     syncXray(on) { press('xrayBtn', on); $('xrayChk').checked = on; },
     syncSection(on) {
@@ -299,11 +305,11 @@ export function createUI(app, act) {
     },
     maybeShowWelcome() {
       let seen = false;
-      try { seen = localStorage.getItem('giza-welcome') === '1'; } catch (e) { /* ignore */ }
+      try { seen = localStorage.getItem(key('welcome')) === '1'; } catch (e) { /* ignore */ }
       const q = new URLSearchParams(location.search);
       if (seen || q.has('still') || q.has('place') || q.has('walk') || q.has('section')) return;
       $('welcome').classList.remove('hidden');
-      try { localStorage.setItem('giza-welcome', '1'); } catch (e) { /* ignore */ }
+      try { localStorage.setItem(key('welcome'), '1'); } catch (e) { /* ignore */ }
     },
     syncTime,
     updateCompass, setWalkHint, setWhere, toast,
