@@ -235,10 +235,9 @@ body.touring #info, body.touring #sectionBar, body.touring #places, body.touring
 .tour { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 70px); z-index: 25;
   width: min(480px, calc(100vw - 16px)); padding: 14px 16px 12px; }
 .tour-top { display: flex; align-items: center; gap: 10px; }
-.tour-step { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
-.tour-kick { flex: 1; font: 600 11px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
-.tour h2 { margin: 6px 0 6px; font: 600 21px/1.2 var(--serif); }
-.tour p { margin: 0 0 10px; color: #e8dfcf; font-size: 14px; }
+.tour-step { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--accent); white-space: nowrap; }
+.tour h2 { flex: 1; min-width: 0; margin: 0; font: 600 20px/1.2 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tour p { margin: 4px 0 10px; color: #e8dfcf; font-size: 14px; line-height: 1.4; }
 .tour-bar { height: 3px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
 .tour-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s linear; }
 .tour-ctl { display: flex; gap: 8px; }
@@ -246,9 +245,11 @@ body.touring #info, body.touring #sectionBar, body.touring #places, body.touring
 .tour-ctl button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .tour-ctl button:disabled { opacity: .4; cursor: default; }
 @media (max-width: 860px) {
-  .tour { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 64px); padding: 12px 14px 10px; }
-  .tour h2 { font-size: 18px; }
-  .tour p { font-size: 13.5px; }
+  .tour { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 64px); padding: 8px 10px 9px 14px; }
+  .tour h2 { font-size: 17px; }
+  .tour p { margin: 2px 0 8px; font-size: 13px; line-height: 1.35; }
+  .tour-bar { margin-bottom: 8px; height: 2px; }
+  .tour-ctl button { padding: 6px 8px; font-size: 14px; }
 }
 
 /* ---------------------------------------------------------- welcome --- */
