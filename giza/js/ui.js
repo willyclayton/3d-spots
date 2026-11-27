@@ -53,6 +53,7 @@ export function createUI(app, act) {
   };
   try { if (localStorage.getItem('giza-places') === '0') document.body.classList.add('places-collapsed'); } catch (e) { /* ignore */ }
   if (new URLSearchParams(location.search).has('noplaces')) document.body.classList.add('places-collapsed');
+  if (new URLSearchParams(location.search).has('clean')) document.body.classList.add('clean');
   $('placesBtn').addEventListener('click', () => togglePlaces());
   $('placesClose').addEventListener('click', () => togglePlaces(false));
 

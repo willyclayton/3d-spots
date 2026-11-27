@@ -99,7 +99,7 @@ export class WalkController {
     if (document.pointerLockElement === this.dom) document.exitPointerLock?.();
   }
 
-  eyeFor(r) { return Math.max(0.75, Math.min(1.62, (r.ceiling - r.floor) - 0.16)); }
+  eyeFor(r) { return Math.max(0.55, Math.min(1.62, (r.ceiling - r.floor) - 0.16)); }
 
   update(dt) {
     if (!this.enabled) return;

@@ -155,7 +155,8 @@ async function init() {
     entrance: [[30, 22, -140], [7, 15, -100]],
     sw: [[-700, 60, 560], [-340, 50, 340]],
     sphinx: [[430, -25, 470], [330, -30, 434]],
-    panorama: [[-1000, 30, 1100], [-300, 60, 400]],
+    panorama: [[-660, 92, 1345], [-330, 55, 420]],
+    hero: [[620, 260, 760], [-170, 20, 280]],
   };
   const [cp, ct] = views[v] || views.default;
   camera.position.set(...cp); controls.target.set(...ct); controls.update();

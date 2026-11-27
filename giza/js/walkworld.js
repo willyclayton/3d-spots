@@ -19,7 +19,7 @@ export class WalkWorld {
     this.volumes = [];
     for (const { P, vols, id } of list) {
       for (const v of vols) {
-        const o = { id: v.el.id, pyr: id, P, axis: v.axis };
+        const o = { id: v.el.id, pyr: id, P, axis: v.axis, stack: v.el.stack };
         if (v.axis === 'x') {
           o.x0 = P.cx + v.a0; o.x1 = P.cx + v.a1; o.z0 = P.cz + v.smin; o.z1 = P.cz + v.smax;
           o.range = (x, z) => profileRangeAt(v.profile, z - P.cz);
@@ -37,12 +37,23 @@ export class WalkWorld {
 
   // all supports at (x,z) that fit a body standing at height y
   supports(x, z, y) {
-    const out = [];
+    const raw = [];
     for (const v of this.volumes) {
       if (x < v.x0 || x > v.x1 || z < v.z0 || z > v.z1) continue;
       const r = v.range(x, z);
       if (!r) continue;
-      out.push({ floor: v.base + r[0], ceiling: v.base + r[1], inside: v.pyr, v });
+      raw.push({ floor: v.base + r[0], ceiling: v.base + r[1], inside: v.pyr, v });
+    }
+    // stacked rooms (gallery corbels, niches, junctions) form one open space
+    raw.sort((a, b) => a.floor - b.floor);
+    const out = [];
+    for (const s of raw) {
+      const last = out[out.length - 1];
+      // merge only rooms stacked on top of each other (floor meets ceiling);
+      // overlapping rooms are separate routes (e.g. the gallery bridge over the
+      // passage to the Queen's Chamber)
+      if (last && last.v?.stack && last.v.stack === s.v?.stack && Math.abs(s.floor - last.ceiling) <= 0.05) { last.ceiling = Math.max(last.ceiling, s.ceiling); last.inside = last.inside || s.inside; }
+      else out.push({ ...s });
     }
     let blocked = false;
     for (const f of this.footprints) if (x > f.x0 && x < f.x1 && z > f.z0 && z < f.z1) { blocked = true; break; }
@@ -55,8 +66,8 @@ export class WalkWorld {
     let best = null;
     for (const s of this.supports(x, z, y)) {
       if (s.floor > y + STEP_UP) continue;           // too high to step onto
-      if (s.ceiling - s.floor < HEAD * 0.8) continue; // too low even to crawl
-      if (s.ceiling < y + HEAD * 0.8) continue;       // we are above this room
+      if (s.ceiling - s.floor < 0.75) continue;      // too low even to crawl
+      if (s.ceiling < y + 0.7) continue;              // we are above this room
       if (!best || s.floor > best.floor) best = s;
     }
     return best;
@@ -69,7 +80,7 @@ export class WalkWorld {
     for (const [ox, oz] of [[R, 0], [-R, 0], [0, R], [0, -R], [R * 0.7, R * 0.7], [-R * 0.7, R * 0.7], [R * 0.7, -R * 0.7], [-R * 0.7, -R * 0.7]]) {
       const s = this.best(x + ox, z + oz, y2);
       if (!s) return null;
-      if (s.ceiling < c.floor + 0.9) return null;
+      if (s.ceiling < c.floor + 0.75) return null;
       if (s.floor > c.floor + STEP_UP) return null;
     }
     return c;

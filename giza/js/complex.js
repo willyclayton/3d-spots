@@ -453,7 +453,7 @@ function buildCity(terrain, quality, rnd) {
   g.poly([P(-L / 2, 0, -W / 2), P(-L / 2, Ht, -W / 2 + 40), P(L / 2, Ht, -W / 2 + 40), P(L / 2, 0, -W / 2)], null, [0.85, 0.82, 0.76]);
   g.poly([P(-L / 2, 0, -W / 2), P(-L / 2, 0, W / 2), P(-L / 2, Ht, -W / 2 + 40)], null, [0.8, 0.77, 0.7]);
   g.poly([P(L / 2, 0, -W / 2), P(L / 2, Ht, -W / 2 + 40), P(L / 2, 0, W / 2)], null, [0.8, 0.77, 0.7]);
-  const gem = new THREE.Mesh(g.build(), Mats.plaster());
+  const gem = new THREE.Mesh(g.build(), Mats.masonry({ color: 0xcdbb9c, joint: 0.15 }));
   gem.castShadow = gem.receiveShadow = true;
   grp.add(gem);
   return grp;

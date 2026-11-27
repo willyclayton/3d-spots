@@ -62,10 +62,10 @@ export function khufuInterior(info) {
   layers.forEach((L, k) => {
     const prof = (za, zb) => [[za, yG(za) + L.b], [zb, yG(zb) + L.b], [zb, yG(zb) + L.t], [za, yG(za) + L.t]];
     if (k === 0) {
-      els.push(prism('G0a', 'x', X - L.w / 2, X + L.w / 2, prof(zGN, zSplit), { mat: 'lime', walk: true, omit: [0] }));
-      els.push(prism('G0b', 'x', X - L.w / 2, X + L.w / 2, prof(zSplit, zGS), { mat: 'lime', walk: true }));
+      els.push(prism('G0a', 'x', X - L.w / 2, X + L.w / 2, prof(zGN, zSplit), { mat: 'lime', walk: true, omit: [0], stack: 'gallery' }));
+      els.push(prism('G0b', 'x', X - L.w / 2, X + L.w / 2, prof(zSplit, zGS), { mat: 'lime', walk: true, stack: 'gallery' }));
     } else {
-      els.push(prism('G' + k, 'x', X - L.w / 2, X + L.w / 2, prof(zGN, zGS), { mat: 'lime', walk: k === 1, floorOffset: k === 1 ? 0 : 0 }));
+      els.push(prism('G' + k, 'x', X - L.w / 2, X + L.w / 2, prof(zGN, zGS), { mat: 'lime', walk: true, stack: 'gallery' }));
     }
   });
   const yGtop = yG(zGS) + layers[layers.length - 1].t;
@@ -76,7 +76,7 @@ export function khufuInterior(info) {
   els.push(nsPassage('QP2', { x: X, w: W, z0: -8.12, y0: 21.2, z1: -2.62, y1: 21.2, h: 1.67, vertical: true, mat: 'lime', walk: true }));
   els.push(room('Q', { x0: 2.07, x1: 7.82, y0: 21.2, y1: 25.87, z0: -2.62, z1: 2.62, gable: 'x', rise: 1.56, mat: 'lime', walk: true }));
   [[0.785, 21.2, 22.9], [0.61, 22.9, 23.73], [0.44, 23.73, 24.56], [0.27, 24.56, 25.9]].forEach(([hw, y0, y1], k) => {
-    els.push(room('QN' + k, { x0: 7.82, x1: 8.86, y0, y1, z0: 0.6 - hw, z1: 0.6 + hw, mat: 'lime', walk: k === 0 }));
+    els.push(room('QN' + k, { x0: 7.82, x1: 8.86, y0, y1, z0: 0.6 - hw, z1: 0.6 + hw, mat: 'lime', walk: true, stack: 'niche' }));
   });
   // Queen's Chamber shafts (blocked by small stone "doors")
   {
@@ -96,6 +96,8 @@ export function khufuInterior(info) {
 
   // ---- Great Step, antechamber, King's Chamber ----------------------------
   const yK = 43.0;
+  // the modern wooden step up onto the Great Step (walkable, not drawn)
+  els.push(room('GSstep', { x0: X - 0.5, x1: X + 0.5, y0: yG(zGS) + 0.45, y1: yG(zGS) + 6, z0: zGS - 0.55, z1: zGS + 0.05, virtual: true, noSection: true, walk: true, era: 'today' }));
   els.push(room('GS', { x0: X - 1.045, x1: X + 1.045, y0: yK, y1: 50.0, z0: zGS, z1: 1.56, mat: 'lime', walk: true }));
   els.push(nsPassage('P1', { x: X, w: W, z0: 1.56, y0: yK, z1: 2.86, y1: yK, h: 1.12, vertical: true, mat: 'lime', walk: true }));
   els.push(room('AC', { x0: X - 0.58, x1: X + 0.58, y0: yK, y1: yK + 3.8, z0: 2.86, z1: 5.84, mat: 'granite', walk: true }));

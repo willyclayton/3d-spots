@@ -214,7 +214,7 @@ export class Terrain {
     const R = 'rgb(255,0,0)';
     ROADS.forEach((r) => line(r, 8.5, R, 0.6));
     rect(170, -150, 245, -95, 'rgb(200,0,0)', 2);       // Khufu north-east coach park
-    rect(-1010, 1040, -945, 1110, 'rgb(200,0,0)', 2);   // panorama terrace
+    rect(-700, 1300, -620, 1360, 'rgb(200,0,0)', 2);    // panorama terrace
     // ---- bedrock (green)
     for (const P of Object.values(PYRAMIDS)) {
       const h = P.base / 2;
@@ -353,7 +353,7 @@ const TERRAIN_ALBEDO = /* glsl */`
   col = mix(col, texture2D(tLime, wp / 1.7).rgb * vec3(1.05, 1.0, 0.92), paveW * 0.85);
   roadW = clamp(mk.r, 0.0, 1.0) * (1.0 - uEra);
   vec3 asph = texture2D(tAsph, wp / 5.0).rgb * mix(0.85, 1.1, nz2.b);
-  col = mix(col, mix(asph, sand, 0.18), roadW);
+  col = mix(col, mix(asph * 1.25, sand, 0.3), roadW);
   vec3 urban = mix(vec3(0.36, 0.31, 0.25), vec3(0.48, 0.42, 0.34), nz2.b);
   vec2 plot = floor(wp / vec2(41.0, 23.0) + nz.ba * 1.5);
   float ph = fract(sin(dot(plot, vec2(12.9898, 78.233))) * 43758.5453);
@@ -361,7 +361,7 @@ const TERRAIN_ALBEDO = /* glsl */`
   field = mix(field, vec3(0.22, 0.16, 0.10), step(0.78, ph));
   field *= mix(0.8, 1.15, texture2D(uNoise, wp / 9.0).a);
   col = mix(col, mix(urban, field, uEra), smoothstep(0.15, 0.6, zoneW));
-  col *= mix(0.95, 1.07, nz.g) * 1.12;
+  col *= mix(0.95, 1.07, nz.g) * 1.3;
   diffuseColor.rgb *= col;
 `;
 
@@ -382,7 +382,7 @@ const TERRAIN_NORMAL = /* glsl */`
 const ROADS = [
   [[-240, -720], [-205, -520], [-150, -360], [-75, -215], [60, -168], [170, -128], [215, -118]],
   [[-75, -215], [-165, -165], [-182, -40], [-180, 110], [-160, 200], [-60, 236], [80, 305], [190, 352], [262, 380], [296, 392]],
-  [[-180, 110], [-330, 150], [-470, 190], [-505, 330], [-520, 480], [-640, 620], [-700, 700], [-720, 820], [-790, 950], [-930, 1060], [-980, 1075]],
+  [[-180, 110], [-330, 150], [-470, 190], [-505, 330], [-520, 480], [-640, 620], [-700, 700], [-720, 820], [-735, 960], [-700, 1120], [-670, 1300]],
   [[-640, 620], [-470, 655], [-360, 700], [-240, 735]],
 ];
 

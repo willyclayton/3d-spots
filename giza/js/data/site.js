@@ -81,7 +81,7 @@ export const COMPLEX = {
   wallOfTheCrow: { x0: 112, x1: 312, z: 852, thick: 10, height: 10 },
   workersTown: { x0: 140, x1: 420, z0: 875, z1: 1050 },
   workersTombs: { x: 40, z: 905 },
-  panorama: { x: -980, z: 1080 },
+  panorama: { x: -660, z: 1330 },
   gem: { x: -1455, z: -1710 },       // Grand Egyptian Museum
 };
 

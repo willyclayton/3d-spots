@@ -323,7 +323,7 @@ export const PLACES = [
   },
   {
     id: 'panorama', name: 'Panorama viewpoint', group: 'around', kind: 'modern', prio: 2, era: 'today',
-    world: [-980, null, 1080], view: { dist: 40, yaw: 230, pitch: 8, look: [-300, 60, 400] },
+    world: [-660, null, 1330], view: { dist: 30, yaw: 200, pitch: 10, look: [-330, 55, 420] },
     desc: 'A desert terrace south-west of the pyramids with the classic view of all three in a row, often with camels in the foreground.',
     facts: [],
   },

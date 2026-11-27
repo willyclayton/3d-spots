@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D Spots</title>
+<meta name="description" content="Explorable 3D maps of the world's great places, starting with the pyramids of Giza.">
+<meta property="og:title" content="3D Spots">
+<meta property="og:description" content="Explorable 3D maps of the world's great places.">
+<meta property="og:image" content="giza/thumb.jpg">
+<meta name="theme-color" content="#16120d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6 60 56H4z' fill='%23e0a54b'/%3E%3Cpath d='M32 6 46 56H32z' fill='%23a8742d'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #14100c; --card: #1e1812; --line: rgba(255, 236, 205, 0.12); --text: #f4ecdd; --muted: #b8a993; --accent: #e3a94f;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  header { padding: 26px 0 0; }
+  .brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 650; letter-spacing: .02em; text-decoration: none; }
+  .brand svg { width: 24px; height: 24px; }
+  .hero { position: relative; margin-top: 26px; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); min-height: 420px; display: flex; align-items: flex-end;
+    background: #2a2117 url("giza/aerial.jpg") center / cover no-repeat; }
+  .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,16,12,0) 30%, rgba(20,16,12,.85) 100%), linear-gradient(90deg, rgba(20,16,12,.55) 0%, rgba(20,16,12,0) 65%); }
+  .hero-text { position: relative; z-index: 1; padding: 30px; max-width: 680px; }
+  .hero h1 { font: 600 clamp(32px, 5vw, 54px)/1.05 var(--serif); margin: 0 0 12px; text-shadow: 0 2px 20px rgba(0,0,0,.4); }
+  .hero p { margin: 0 0 20px; color: #eadfcb; font-size: 17px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: #1b1309; font-weight: 650; text-decoration: none; padding: 11px 18px; border-radius: 12px; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn svg { width: 18px; height: 18px; }
+  h2 { font: 600 24px var(--serif); margin: 46px 0 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 18px; }
+  .card { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; text-decoration: none; transition: transform .2s, border-color .2s; }
+  a.card:hover { transform: translateY(-3px); border-color: rgba(227,169,79,.5); }
+  .thumb { aspect-ratio: 1200 / 630; background: #2a2117 center / cover no-repeat; position: relative; }
+  .thumb.soon { background: radial-gradient(ellipse at 50% 120%, #4a3a26, #1b1510 70%); display: grid; place-items: center; }
+  .thumb.soon svg { width: 76px; height: 76px; opacity: .55; }
+  .badge { position: absolute; top: 12px; left: 12px; font-size: 12px; font-weight: 650; padding: 4px 10px; border-radius: 999px; background: rgba(20,16,12,.8); border: 1px solid var(--line); }
+  .badge.live { color: #1b1309; background: var(--accent); border-color: var(--accent); }
+  .card-body { padding: 16px 18px 18px; }
+  .card h3 { margin: 0 0 4px; font: 600 21px var(--serif); }
+  .card .where { color: var(--muted); font-size: 14px; margin-bottom: 10px; }
+  .card ul { margin: 0; padding-left: 18px; color: #e3d8c5; font-size: 14px; }
+  .card li { margin: 2px 0; }
+  footer { margin: 60px 0 40px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+  @media (max-width: 600px) {
+    .hero { min-height: 340px; border-radius: 16px; }
+    .hero-text { padding: 20px; }
+    .hero p { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="./">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 60 56H4z" fill="#e3a94f"/><path d="M32 6 46 56H32z" fill="#000" opacity=".25"/></svg>
+      3D Spots
+    </a>
+  </header>
+
+  <section class="hero" aria-labelledby="heroTitle">
+    <div class="hero-text">
+      <h1 id="heroTitle">Explore the world’s great places in 3D</h1>
+      <p>Walk through the passages of the Great Pyramid, cut monuments open to see inside, and turn back time to see them as they were built.</p>
+      <a class="btn" href="giza/">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        Open Giza Pyramids
+      </a>
+    </div>
+  </section>
+
+  <h2>Spots</h2>
+  <div class="grid">
+    <a class="card" href="giza/">
+      <div class="thumb" style="background-image:url('giza/thumb.jpg')"><span class="badge live">Live</span></div>
+      <div class="card-body">
+        <h3>Giza Pyramids</h3>
+        <div class="where">Giza, Egypt · c. 2600–2500 BCE</div>
+        <ul>
+          <li>All three pyramids, the Sphinx, temples and tombs</li>
+          <li>Cutaways of every chamber and passage</li>
+          <li>Walk inside, or switch to 2560 BCE</li>
+        </ul>
+      </div>
+    </a>
+    <div class="card" aria-label="Petra, coming soon">
+      <div class="thumb soon"><span class="badge">Coming soon</span>
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 58V30h6V22h6l4-8h16l4 8h6v8h6v28z" fill="#c98c5a"/><path d="M26 58V40a6 6 0 0 1 12 0v18z" fill="#1b1510"/></svg>
+      </div>
+      <div class="card-body">
+        <h3>Petra</h3>
+        <div class="where">Ma’an, Jordan · 1st century CE</div>
+        <ul><li>The Siq, the Treasury and the Monastery</li></ul>
+      </div>
+    </div>
+    <div class="card" aria-label="Eiffel Tower, coming soon">
+      <div class="thumb soon"><span class="badge">Coming soon</span>
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4l3 14h-6zM28 20h8l3 14H25zM24 36h16l8 22H38l-6-12-6 12H16z" fill="#b9a88f"/></svg>
+      </div>
+      <div class="card-body">
+        <h3>Eiffel Tower</h3>
+        <div class="where">Paris, France · 1889</div>
+        <ul><li>Every girder, platform and lift</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Built with three.js. Giza terrain from SRTM elevation data; all textures are generated procedurally.
+  </footer>
+</div>
+</body>
+</html>

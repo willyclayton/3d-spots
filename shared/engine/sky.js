@@ -142,6 +142,7 @@ export class SkySystem {
     // horizon colour for fog
     this.cubeCam.update(this.renderer, this.envScene);
     const buf = new Uint16Array(16 * 4);
+    try { this.renderer.getContext().getError(); } catch (e) { /* ignore */ }
     let r = 0, g = 0, b = 0, n = 0;
     for (const face of [0, 1, 4, 5]) {
       this.renderer.readRenderTargetPixels(this.cubeRT, 0, 7, 16, 1, buf, face);
@@ -153,6 +154,11 @@ export class SkySystem {
       }
     }
     r /= n; g /= n; b /= n;
+    if (!(r + g + b > 1e-4) || !isFinite(r + g + b)) {
+      // read-back not supported on this GPU: estimate the horizon colour
+      const alt = this.alt / RAD, low = 1 - smoothstep(0, 25, alt), day = smoothstep(-6, 4, alt);
+      r = lerp(0.78, 1.05, low) * day; g = lerp(0.82, 0.72, low) * day; b = lerp(0.88, 0.55, low) * day;
+    }
     // the sky shader output is pre-tonemapping radiance; scale into scene units
     const k = 0.9;
     this.horizon = new THREE.Color(r * k, g * k, b * k);
