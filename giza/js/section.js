@@ -75,11 +75,24 @@ export class SectionTool {
     this.update();
   }
 
+  // Returns false (and leaves everything off) if the cut could not be built,
+  // so the stone is never sliced open without its cut faces.
   setEnabled(on) {
-    this.enabled = on;
-    this.group.visible = on;
-    this.applyClipping(on);
-    if (on) this.update();
+    if (on) {
+      this.enabled = true;
+      try { this.update(); } catch (e) {
+        console.error('section', e);
+        this.enabled = false; this.group.visible = false;
+        try { this.applyClipping(false); } catch (e2) { /* ignore */ }
+        throw e;
+      }
+      this.group.visible = true;
+      this.applyClipping(true);
+      return;
+    }
+    this.enabled = false;
+    this.group.visible = false;
+    this.applyClipping(false);
   }
 
   // world position of the cut plane and the removed side
@@ -143,7 +156,9 @@ export class SectionTool {
       while (n) { if (n === this.group || n.userData?.noClip) return; n = n.parent; }
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of mats) {
+        if (!m || !m.isMaterial) continue;
         if (m.isShaderMaterial && !m.isMeshStandardMaterial && m.uniforms?.sunPosition) continue; // sky
+        if (!on && !m.clippingPlanes) continue;
         m.clippingPlanes = on ? this.planes : null;
         m.clipIntersection = true;
         m.clipShadows = true;

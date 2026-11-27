@@ -396,10 +396,11 @@ function setMode(mode, opts = {}) {
   if (mode === 'walk') {
     state.mode = mode;
     controls.enabled = false;
-    if (state.section) setSection(false);
+    app.cancelFly();
+    if (state.section) setSection(false, { instant: true });
     if (state.xray) setXray(false);
     const sp = walkSpawn();
-    if (state.section) setSection(false);
+    if (state.section) setSection(false, { instant: true });
     walk.enable(sp.pos, sp.yaw, 0);
     camera.near = 0.05; camera.updateProjectionMatrix();
     app.ui.toast(sp.hint || (coarse ? 'Walk mode: joystick to move, drag to look' : 'Walk mode: W A S D to move, click to look around'));
@@ -486,8 +487,10 @@ function enterWalkAt(p) {
     pos.y = app.terrain.heightAt(pos.x, pos.z);
     yaw = Math.atan2(-(target.x - pos.x), -(target.z - pos.z));
   }
-  if (state.section) setSection(false);
-  if (state.xray) setXray(false);
+  app.cancelFly();
+  if (state.section) setSection(false, { instant: true });
+  if (state.xray) setXray(false, { instant: true });
+  app.cancelFly();
   if (state.mode !== 'walk') {
     state.mode = 'walk'; controls.enabled = false; app.ui.syncMode('walk');
     camera.near = 0.05; camera.updateProjectionMatrix();
@@ -545,10 +548,11 @@ function applyXray(on) {
   for (const g of Object.values(app.pyr.groups)) g.group.traverse((m) => { if (m.isMesh) m.castShadow = !on; });
 }
 
-function setXray(on) {
+function setXray(on, { instant = false } = {}) {
   if (on === state.xray) return;
   state.xray = on;
   if (on && state.section) setSection(false);
+  if (!on && !state.section && !instant && state.mode === 'orbit') { const exit = exitPoint(); if (exit) flyTo(exit, controls.target.clone(), 1100); }
   applyXray(on);
   app.rubble.visible = !on && state.era === 'today';
   // outlines of the pyramids
@@ -599,6 +603,28 @@ function setXray(on) {
   app.ui.syncXray(on);
 }
 
+function syncVoids() {
+  const { section } = app;
+  for (const it of Object.values(app.interiors)) it.voidMeshes.forEach((v) => { v.visible = ((state.section && section.target === it.id) || state.xray) && state.showVoids; });
+}
+
+// Where to put the camera so that it is clear of the stone: straight back
+// along the line of sight from wherever it is now. null if already outside.
+function exitPoint() {
+  const q = camera.position.clone();
+  keepOutOfStone(q);
+  if (q.distanceToSquared(camera.position) < 0.01) return null;
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  if (dir.y < 0.15) { dir.y = 0.15; dir.normalize(); }
+  const p = camera.position.clone(), t = new THREE.Vector3();
+  for (let i = 0; i < 300; i++) {
+    p.addScaledVector(dir, 2);
+    keepOutOfStone(t.copy(p), 6);
+    if (t.distanceToSquared(p) < 1e-4) return p.addScaledVector(dir, 70 * fitScale());   // and far enough to see it
+  }
+  return q;
+}
+
 function setSection(on, opts = {}, moveCamera = true) {
   const { section } = app;
   let flyP = Promise.resolve();
@@ -609,8 +635,16 @@ function setSection(on, opts = {}, moveCamera = true) {
     const plane = opts.plane || section.plane;
     let offset = opts.offset;
     if (offset === undefined) offset = (opts.target || opts.plane || !state.section) ? section.defaultOffset(target, plane) : section.offset;
-    section.set({ era: state.era, flip: opts.flip ?? section.flip, target, plane, offset });
-    if (!state.section) section.setEnabled(true);
+    try {
+      section.set({ era: state.era, flip: opts.flip ?? section.flip, target, plane, offset });
+      if (!section.enabled) section.setEnabled(true);
+    } catch (e) {
+      reportError('Cutaway', e);
+      state.section = false;
+      if (section.enabled) section.setEnabled(false);
+      app.ui.syncSection(false);
+      return flyP;
+    }
     state.section = true;
     if (moveCamera) {
       const vp = section.viewpoint();
@@ -619,10 +653,17 @@ function setSection(on, opts = {}, moveCamera = true) {
       flyP = flyTo(pos, tgt);
     }
   } else if (state.section) {
-    section.setEnabled(false);
     state.section = false;
+    // Cut views often put the camera where the removed half of the stone
+    // would be. Back out of it first, with the cut still showing, and only
+    // close the stone once the camera is outside.
+    const exit = !state.xray && !opts.instant && state.mode === 'orbit' ? exitPoint() : null;
+    if (exit) {
+      flyP = flyTo(exit, controls.target.clone(), 1100, { free: true });
+      flyP.then(() => { if (!state.section) section.setEnabled(false); syncVoids(); });
+    } else section.setEnabled(false);
   }
-  for (const it of Object.values(app.interiors)) it.voidMeshes.forEach((v) => { v.visible = ((state.section && section.target === it.id) || state.xray) && state.showVoids; });
+  syncVoids();
   app.ui.syncSection(state.section);
   return flyP;
 }
@@ -643,12 +684,13 @@ function setTime(h) {
 
 // ---------------------------------------------------------- camera moves --
 let fly = null;
-function flyTo(pos, target, ms = 1600) {
+function flyTo(pos, target, ms = 1600, { free = false } = {}) {
   if (fly) fly.done();
   const from = { p: camera.position.clone(), t: controls.target.clone() };
   const dist = from.p.distanceTo(pos);
   return new Promise((resolve) => {
-    fly = { from, to: { p: pos.clone(), t: target.clone() }, t0: performance.now(), ms: Math.min(2600, ms + dist * 0.4), arc: Math.min(400, dist * 0.18), done: resolve };
+    // free: the path may start inside the stone (backing out of a cutaway)
+    fly = { from, to: { p: pos.clone(), t: target.clone() }, t0: performance.now(), ms: Math.min(2600, ms + dist * 0.4), arc: free ? 0 : Math.min(400, dist * 0.18), free, done: resolve };
     if (STILL) { camera.position.copy(pos); controls.target.copy(target); fly = null; controls.update(); resolve(); }
   });
 }
@@ -751,6 +793,24 @@ function keepOutOfStone(p, margin = 1.5) {
 }
 app.keepOutOfStone = keepOutOfStone;
 
+// Errors show up as a short note on screen (most visitors use phones, where
+// there is no console), at most one every few seconds.
+let lastErr = 0;
+function reportError(where, e) {
+  console.error(where, e);
+  const now = performance.now();
+  if (now - lastErr < 4000 || !app.ui) return;
+  lastErr = now;
+  const msg = String((e && (e.message || e.reason?.message || e.reason)) || e || 'unknown').slice(0, 140);
+  app.ui.toast(`${where} problem: ${msg}`);
+}
+addEventListener('error', (ev) => reportError('Script', ev.error || ev.message));
+addEventListener('unhandledrejection', (ev) => reportError('Script', ev.reason));
+renderer.debug.onShaderError = (gl, program, vs, fs) => {
+  const log = (gl.getProgramInfoLog(program) || '') + ' ' + (gl.getShaderInfoLog(fs) || '') + ' ' + (gl.getShaderInfoLog(vs) || '');
+  reportError('Graphics', log.trim() || 'shader failed to compile');
+};
+
 // ------------------------------------------------------------------- loop --
 const clock = new THREE.Clock();
 let envTimer = 0;
@@ -767,6 +827,10 @@ function startLoop() {
       controls.target.lerpVectors(fly.from.t, fly.to.t, e);
       if (t >= 1) { const f = fly; fly = null; f.done(); }
     }
+    // never leave the stone sliced open while the cutaway is off
+    if (app.section.enabled !== state.section && !fly?.free) {
+      if (!state.section) { app.section.setEnabled(false); app.ui.syncSection(false); } else setSection(true);
+    }
     let focus, radius;
     if (state.mode === 'walk') {
       app.walk.update(dt);
@@ -776,7 +840,7 @@ function startLoop() {
       controls.update();
       const minY = app.terrain.heightAt(camera.position.x, camera.position.z, false) + 1.2;
       if (camera.position.y < minY && !state.section) camera.position.y = minY;
-      if (!state.section && !state.xray) keepOutOfStone(camera.position);
+      if (!state.section && !state.xray && !fly?.free) keepOutOfStone(camera.position);
       const dist = camera.position.distanceTo(controls.target);
       camera.near = THREE.MathUtils.clamp(dist * 0.0015, 0.08, 3);
       camera.updateProjectionMatrix();
