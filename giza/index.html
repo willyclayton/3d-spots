@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Giza Pyramids in 3D · 3D Spots</title>
+<meta name="description" content="Explore the pyramids of Giza in 3D: walk through the passages, cut the pyramids open, see them as built in 2560 BCE or as they stand today.">
+<meta property="og:title" content="Giza Pyramids in 3D">
+<meta property="og:description" content="An explorable 3D map of the Giza plateau with cutaways of every chamber and passage.">
+<meta property="og:image" content="thumb.jpg">
+<meta name="theme-color" content="#16120d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6 60 56H4z' fill='%23e0a54b'/%3E%3Cpath d='M32 6 46 56H32z' fill='%23a8742d'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../shared/ui.css">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "../vendor/three/three.module.js",
+  "three/addons/": "../vendor/three/addons/",
+  "polygon-clipping": "../vendor/polygon-clipping.js"
+} }
+</script>
+</head>
+<body>
+<div id="app" aria-label="3D view of the Giza plateau"></div>
+<div id="labels" aria-label="Map labels"></div>
+
+<header class="topbar">
+  <a class="brand" href="../" title="All 3D Spots">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 60 56H4z" fill="currentColor" opacity=".9"/><path d="M32 6 46 56H32z" fill="#000" opacity=".25"/></svg>
+    <span>3D Spots</span>
+  </a>
+  <span class="crumb">/</span>
+  <h1>Giza Pyramids</h1>
+  <span class="era-badge" id="eraBadge">Today</span>
+</header>
+
+<button class="fab" id="placesBtn" aria-controls="places" aria-expanded="false">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+  <span>Places</span>
+</button>
+
+<aside id="places" class="panel" aria-label="Places">
+  <div class="panel-head">
+    <div class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 4.2 12.6l5.1 5.1 1.4-1.4-5.1-5.1A7 7 0 0 0 10 3zm0 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10z"/></svg>
+      <input id="search" type="search" placeholder="Search places" autocomplete="off" aria-label="Search places">
+    </div>
+    <button class="icon-btn" id="placesClose" aria-label="Hide places" title="Hide places">×</button>
+  </div>
+  <div id="placeList" class="place-list" role="list"></div>
+</aside>
+
+<aside id="info" class="panel hidden" aria-live="polite" aria-label="Place details">
+  <button class="icon-btn info-close" id="infoClose" aria-label="Close">×</button>
+  <div class="kicker" id="infoKicker"></div>
+  <h2 id="infoTitle"></h2>
+  <p id="infoDesc"></p>
+  <dl id="infoFacts" class="facts"></dl>
+  <div class="actions" id="infoActions"></div>
+</aside>
+
+<div id="sectionBar" class="subbar hidden" role="group" aria-label="Cutaway controls">
+  <label class="field">
+    <span>Pyramid</span>
+    <select id="secTarget">
+      <option value="khufu">Khufu</option>
+      <option value="khafre">Khafre</option>
+      <option value="menkaure">Menkaure</option>
+    </select>
+  </label>
+  <div class="seg small" id="secPlane" role="radiogroup" aria-label="Cut direction">
+    <button data-v="x" class="on" role="radio" aria-checked="true" title="North–south cut, seen from the east">N–S</button>
+    <button data-v="z" role="radio" aria-checked="false" title="East–west cut, seen from the south">E–W</button>
+  </div>
+  <label class="field grow">
+    <span id="secOffsetLabel">Position</span>
+    <input id="secOffset" type="range" min="-100" max="100" step="0.1" value="0" aria-label="Cut position">
+  </label>
+  <button class="chip" id="secFlip" title="Look from the other side">Flip side</button>
+  <button class="chip" id="secView" title="Point the camera at the cut">Face cut</button>
+</div>
+
+<nav id="toolbar" aria-label="Tools">
+  <div class="seg" id="modeSeg" role="radiogroup" aria-label="Navigation mode">
+    <button data-v="orbit" class="on" role="radio" aria-checked="true" title="Orbit and fly around (O)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4C6 4 2 7.6 2 12s4 8 10 8 10-3.6 10-8-4-8-10-8zm0 2c4.6 0 8 2.7 8 6s-3.4 6-8 6-8-2.7-8-6 3.4-6 8-6zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg><span>Explore</span></button>
+    <button data-v="walk" role="radio" aria-checked="false" title="Walk on foot (V)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.3 7.3 0 0 0 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg><span>Walk</span></button>
+  </div>
+  <span class="div" aria-hidden="true"></span>
+  <button class="tool" id="secBtn" aria-pressed="false" title="Cut a pyramid open (C)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 1 21h22L12 2zm0 4.2L19.5 19H12V6.2z"/></svg><span>Cutaway</span></button>
+  <button class="tool" id="xrayBtn" aria-pressed="false" title="See through the stone (X)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 1 21h22L12 2zm0 3.8L20 19H4l8-13.2zM11 11h2v6h-2z" /></svg><span>X-ray</span></button>
+  <span class="div" aria-hidden="true"></span>
+  <div class="seg" id="eraSeg" role="radiogroup" aria-label="Era">
+    <button data-v="today" class="on" role="radio" aria-checked="true" title="As it is today (E)">Today</button>
+    <button data-v="built" role="radio" aria-checked="false" title="As built, around 2560 BCE (E)">2560 BCE</button>
+  </div>
+  <span class="div" aria-hidden="true"></span>
+  <label class="sun" title="Time of day">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input id="timeSlider" type="range" min="6" max="18" step="0.05" value="15.5" aria-label="Time of day">
+    <output id="timeOut">15:30</output>
+  </label>
+  <span class="div" aria-hidden="true"></span>
+  <button class="tool icon" id="labelsBtn" aria-pressed="true" title="Show labels (L)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h12l6 7-6 7H3V5zm2 2v10h9.1l4.3-5-4.3-5H5z"/></svg><span class="sr">Labels</span></button>
+  <button class="tool icon" id="settingsBtn" aria-pressed="false" aria-controls="settings" title="Settings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1L11 21h4l.4-2.9c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5-2.2-1.6zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg><span class="sr">Settings</span></button>
+  <button class="tool icon" id="helpBtn" title="Help (H)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 17h-2v-2h2v2zm2.1-7.8-.9.9c-.7.7-1.2 1.3-1.2 2.9h-2v-.5c0-1.1.4-2.1 1.2-2.8l1.2-1.3a2 2 0 1 0-3.4-1.4H8a4 4 0 1 1 8 0c0 .9-.4 1.6-.9 2.2z"/></svg><span class="sr">Help</span></button>
+</nav>
+
+<div id="settings" class="panel popover hidden" aria-label="Settings">
+  <h3>Settings</h3>
+  <label class="row"><span>Quality</span>
+    <select id="qualitySel"><option value="low">Low (fastest)</option><option value="medium">Medium</option><option value="high">High</option></select>
+  </label>
+  <p class="hint">Changing quality reloads the scene.</p>
+  <label class="row"><span>Date</span><input type="date" id="dateInput"></label>
+  <label class="row check"><input type="checkbox" id="voidsChk" checked> <span>Show muon-detected voids</span></label>
+  <label class="row check"><input type="checkbox" id="cityChk" checked> <span>Show modern Giza (Today)</span></label>
+  <button class="chip" id="nowBtn">Sun at the current time in Giza</button>
+</div>
+
+<div id="compass" title="Click to face north" role="button" aria-label="Compass: click to face north" tabindex="0">
+  <div class="rose"><span class="n">N</span><span class="e">E</span><span class="s">S</span><span class="w">W</span><i></i></div>
+</div>
+
+<div id="walkHud" class="hidden">
+  <div class="crosshair" aria-hidden="true"></div>
+  <div class="walk-hint" id="walkHint"></div>
+  <div class="joystick" id="joystick" aria-hidden="true"><div class="knob"></div></div>
+  <div class="where" id="whereTag"></div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div id="help" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="modal-card">
+    <button class="icon-btn modal-close" id="helpClose" aria-label="Close help">×</button>
+    <h2 id="helpTitle">Exploring Giza</h2>
+    <div class="help-grid">
+      <section>
+        <h4>Explore mode</h4>
+        <ul>
+          <li><b>Drag</b> to orbit · <b>right-drag</b> or <b>two fingers</b> to pan</li>
+          <li><b>Scroll</b> or <b>pinch</b> to zoom</li>
+          <li>Click a <b>label</b> or a place in the list to fly there</li>
+        </ul>
+      </section>
+      <section>
+        <h4>Walk mode</h4>
+        <ul>
+          <li><b>W A S D</b> or arrows to move, <b>Shift</b> to run</li>
+          <li><b>Click</b> the view to look with the mouse, <b>Esc</b> to release</li>
+          <li>On touch: joystick to move, drag to look</li>
+          <li>Pick a chamber in <b>Places</b> to jump inside</li>
+        </ul>
+      </section>
+      <section>
+        <h4>Tools</h4>
+        <ul>
+          <li><b>Cutaway</b> slices a pyramid and the bedrock open</li>
+          <li><b>X-ray</b> makes the stone transparent</li>
+          <li><b>Today / 2560 BCE</b> swaps the ruins for the finished monuments</li>
+          <li>The <b>sun</b> follows its real path over Giza</li>
+        </ul>
+      </section>
+      <section>
+        <h4>Keys</h4>
+        <ul class="keys">
+          <li><kbd>V</kbd> walk · <kbd>O</kbd> explore</li>
+          <li><kbd>C</kbd> cutaway · <kbd>X</kbd> x-ray</li>
+          <li><kbd>E</kbd> era · <kbd>L</kbd> labels · <kbd>F</kbd> torch</li>
+          <li><kbd>H</kbd> help</li>
+        </ul>
+      </section>
+    </div>
+    <p class="note">Terrain from SRTM elevation data. Dimensions follow Petrie’s survey and later work; some chamber positions in Khafre and Menkaure, and the shape of the 2017 “Big Void”, are approximate.</p>
+  </div>
+</div>
+
+<div id="loading">
+  <div class="load-card">
+    <svg class="load-logo" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 60 56H4z" fill="#e0a54b"/><path d="M32 6 46 56H32z" fill="#000" opacity=".28"/></svg>
+    <h2>Giza Pyramids</h2>
+    <div class="bar"><i id="loadBar"></i></div>
+    <p id="loadMsg">Loading…</p>
+  </div>
+</div>
+
+<noscript><p class="noscript">This 3D map needs JavaScript and WebGL.</p></noscript>
+<script>
+  window.__setProgress = function (p, msg) {
+    var b = document.getElementById('loadBar'); if (b) b.style.width = Math.round(p * 100) + '%';
+    var m = document.getElementById('loadMsg'); if (m && msg) m.textContent = msg;
+  };
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
