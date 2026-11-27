@@ -234,5 +234,13 @@ def asphalt(n=512):
     save_rgb("asphalt_albedo.jpg", alb)
 
 
+def water(n=512):
+    """Wind ripples for the Nile flood.  Tile = 24 m."""
+    a = spectral(n, 2.6, 6, 80, seed=71)
+    b = spectral(n, 1.8, 30, 200, seed=72, aniso=(1.0, 2.5))
+    h = a * 0.7 + b * 0.3
+    save_rgb("water_normal.jpg", normal_from_height(h, 6.0), 90)
+
+
 if __name__ == "__main__":
-    sand(); gravel(); limestone(); casing(); granite(); rock(); asphalt()
+    sand(); gravel(); limestone(); casing(); granite(); rock(); asphalt(); water()

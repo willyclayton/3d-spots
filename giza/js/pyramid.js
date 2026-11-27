@@ -204,8 +204,9 @@ export function buildSteppedCore(opts) {
         const dust = [tf[0] * 1.08, tf[1] * 1.04, tf[2] * 0.96];
         for (const [p0, p1, ain] of segs) {
           if (atf - ain < 0.01) continue;
+          // aux.z = distance from the riser of the course above (inside corner)
           emit([[p0, ain, y1], [p1, ain, y1], [p1, atf, y1], [p0, atf, y1]], [0, 0, 1], dust,
-            (p) => [p[0] - bl.u0, bl.u1 - p[0], 1]);
+            (p) => [p[0] - bl.u0, bl.u1 - p[0], isTop ? 9 : p[1] - (ain + 0.35)]);
         }
         // underside where the block below is set further back
         if (dn && !bl.noBack) {

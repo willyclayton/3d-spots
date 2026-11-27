@@ -4,6 +4,8 @@
 //   world.resolve(feet: Vector3, dx, dz) -> { x, z, floor, ceiling } | null
 import * as THREE from 'three';
 
+const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 export class WalkController {
   constructor(camera, dom, world, { onLockChange, joystickEl } = {}) {
     this.camera = camera; this.dom = dom; this.world = world;
@@ -181,6 +183,11 @@ export class WalkController {
       const target = this.eyeFor(r);
       this.eyeCur += (target - this.eyeCur) * Math.min(1, dt * 8);
       this.inside = r.inside;
+      // gait: phase advances with distance walked (about 0.75 m per step)
+      const moved = Math.hypot(this.feet.x - x0, this.feet.z - z0);
+      this.bobPhase = (this.bobPhase || 0) + moved * (Math.PI / 0.75);
+      const gait = moved / dt > 0.3 && !REDUCED_MOTION ? 1 : 0;
+      this.bobAmp = (this.bobAmp || 0) + (gait - (this.bobAmp || 0)) * Math.min(1, dt * 6);
       if (this.auto) {
         const h = Math.hypot(this.feet.x - x0, this.feet.z - z0);
         if (h > 1e-3) this.auto.slope += ((this.feet.y - y0) / h - this.auto.slope) * Math.min(1, dt * 3);
@@ -193,7 +200,9 @@ export class WalkController {
     let eye = this.eyeCur;
     // never let the eye poke through a low ceiling
     if (this.ceiling !== undefined && isFinite(this.ceiling)) eye = Math.min(eye, this.ceiling - this.feet.y - 0.12);
-    this.camera.position.set(this.feet.x, this.feet.y + Math.max(0.3, eye), this.feet.z);
-    this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+    const bob = (this.bobAmp || 0) * (Math.abs(Math.sin(this.bobPhase || 0)) * 0.035 - 0.0175);
+    const sway = (this.bobAmp || 0) * Math.sin((this.bobPhase || 0) * 0.5) * 0.004;
+    this.camera.position.set(this.feet.x, this.feet.y + Math.max(0.3, eye + bob), this.feet.z);
+    this.camera.rotation.set(this.pitch, this.yaw, sway, 'YXZ');
   }
 }

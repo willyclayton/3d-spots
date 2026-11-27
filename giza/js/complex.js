@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GeoBuilder, addBox } from '../../shared/engine/geo.js';
 import { mulberry32, fbm2, lerp, clamp } from '../../shared/engine/util.js';
 import { COMPLEX, SPHINX } from './data/site.js';
-import { Mats } from './materials.js';
+import { Mats, TEX } from './materials.js';
 import { causewayY } from './terrain.js';
 
 export function buildComplex(terrain, { quality = 'high' } = {}) {
@@ -463,7 +463,9 @@ function buildWater() {
   // inundation water over the valley floor, reaching the valley temples
   const geo = new THREE.PlaneGeometry(30000, 30000, 1, 1);
   geo.rotateX(-Math.PI / 2);
-  const mat = new THREE.MeshStandardMaterial({ color: 0x3d5a5e, roughness: 0.18, metalness: 0.0, transparent: true, opacity: 0.92 });
+  // silty flood water with wind ripples (normal map scrolled each frame)
+  const nm = TEX.waterN.clone(); nm.wrapS = nm.wrapT = THREE.RepeatWrapping; nm.repeat.set(30000 / 26, 30000 / 26); nm.needsUpdate = true;
+  const mat = new THREE.MeshStandardMaterial({ color: 0x3a5354, roughness: 0.1, metalness: 0.0, transparent: true, opacity: 0.94, normalMap: nm, normalScale: new THREE.Vector2(0.35, 0.35) });
   const m = new THREE.Mesh(geo, mat);
   m.position.y = -41.4;
   m.receiveShadow = true;

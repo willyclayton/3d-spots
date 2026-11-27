@@ -13,6 +13,7 @@ const TEX_DEFS = {
   granite: ['granite_albedo.jpg', 'granite_normal.jpg'],
   rock: ['rock_albedo.jpg', 'rock_normal.jpg'],
   asphalt: ['asphalt_albedo.jpg', null],
+  water: [null, 'water_normal.jpg'],
 };
 
 export function loadTextures(manager, renderer, base = 'textures/') {
@@ -26,7 +27,7 @@ export function loadTextures(manager, renderer, base = 'textures/') {
       t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
       return t;
     };
-    ps.push(loader.loadAsync(base + alb).then((t) => { TEX[key] = setup(t, true); }));
+    if (alb) ps.push(loader.loadAsync(base + alb).then((t) => { TEX[key] = setup(t, true); }));
     if (nrm) ps.push(loader.loadAsync(base + nrm).then((t) => { TEX[key + 'N'] = setup(t, false); }));
   }
   TEX.noise = makeNoiseTexture();
@@ -86,9 +87,25 @@ export function addMacro(mat, { scale = 60, amount = 0.22, extra = '' } = {}) {
           ${extra}
         }`);
   };
-  mat.customProgramCacheKey = () => 'macro' + scale + amount + extra.length;
+  mat.customProgramCacheKey = () => 'macro' + scale + amount + hashStr(extra);
   return mat;
 }
+
+function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0; return h; }
+
+// Weathering on exposed stone: vertical run-off streaks, large tonal patches,
+// dust low down and wind-blown sand caught on the steps.
+const WEATHER = (streakAmt, sandAmt) => `
+  {
+    float streak = texture2D(uNoise, vec2((vWPos.x + vWPos.z) * 0.021, vWPos.y * 0.0021)).b;
+    float patchW = texture2D(uNoise, vWPos.xz * 0.0031 + vec2(vWPos.y * 0.0047, 0.0)).g;
+    diffuseColor.rgb *= mix(0.87, 1.09, patchW) * mix(1.0 - ${streakAmt}, 1.0 + ${streakAmt} * 0.5, streak);
+    float low = 1.0 - smoothstep(4.0, 30.0, vWPos.y);
+    diffuseColor.rgb *= mix(vec3(1.0), vec3(1.05, 0.99, 0.9), low * 0.6);
+    float upw = dot(normalize(vNormal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz));
+    float sandOn = smoothstep(0.55, 0.95, upw) * smoothstep(0.3, 0.8, texture2D(uNoise, vWPos.xz * 0.11).a + low * 0.35);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.45, 0.27), sandOn * ${sandAmt});
+  }`;
 
 // Dark mortar joints and occluded beds, from the per-vertex 'aux' attribute
 // (distance to the left/right block joint and height above the bed, metres).
@@ -100,21 +117,28 @@ export function addJoints(mat, { width = 0.05, dark = 0.3 } = {}) {
       .replace('#include <common>', '#include <common>\nattribute vec3 aux;\nvarying vec3 vAux;')
       .replace('#include <uv_vertex>', '#include <uv_vertex>\nvAux = aux;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vAux;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vAux;\nfloat gCornerAO = 1.0;')
       .replace('#include <map_fragment>', `#include <map_fragment>
         {
           float e = min(vAux.x, vAux.y);
           float fw = fwidth(e);
           float j = smoothstep(0.0, max(${width.toFixed(3)}, fw * 1.5), e);
           float fade = 1.0 - smoothstep(0.015, 0.09, fw);
-          float fb = fwidth(vAux.z);
-          float bed = smoothstep(0.0, max(0.16, fb * 1.5), vAux.z);
+          float cz = max(vAux.z, 0.0);
+          float fb = fwidth(cz);
+          float bed = smoothstep(0.0, max(0.16, fb * 1.5), cz);
           float fadeB = 1.0 - smoothstep(0.03, 0.2, fb);
-          diffuseColor.rgb *= mix(1.0, mix(${dark.toFixed(2)}, 1.0, j), fade) * mix(1.0, mix(0.55, 1.0, bed), fadeB);
-        }`);
+          diffuseColor.rgb *= mix(1.0, mix(${dark.toFixed(2)}, 1.0, j), fade) * mix(1.0, mix(0.7, 1.0, bed), fadeB);
+          // inside corners and joints see less sky: occlude the indirect light there
+          float corner = smoothstep(0.0, 0.5, cz);
+          gCornerAO = mix(0.85, mix(0.3, 1.0, corner) * mix(0.7, 1.0, j), fadeB);
+        }`)
+      .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+        reflectedLight.indirectDiffuse *= gCornerAO;
+        reflectedLight.indirectSpecular *= gCornerAO;`);
   };
   const prevKey = mat.customProgramCacheKey;
-  mat.customProgramCacheKey = () => 'joints' + width + dark + (prevKey ? prevKey() : '');
+  mat.customProgramCacheKey = () => 'joints2' + width + dark + (prevKey ? prevKey() : '');
   return mat;
 }
 
@@ -126,7 +150,7 @@ export const Mats = {
       vertexColors: true, roughness: 0.93, metalness: 0,
       color: new THREE.Color(0xf2e6d2),
     });
-    addMacro(m, { scale: 45, amount: 0.2 });
+    addMacro(m, { scale: 45, amount: 0.2, extra: WEATHER('0.1', '0.55') });
     return addJoints(m);
   },
   // generic ashlar masonry: courses and staggered joints drawn in world space
@@ -175,7 +199,7 @@ export const Mats = {
       map: tex('casing', 3), normalMap: tex('limestoneN', 3),
       normalScale: new THREE.Vector2(0.5, 0.5),
       vertexColors: true, roughness: 0.82, color: new THREE.Color(0xc9b99c),
-    }), { scale: 30, amount: 0.25 });
+    }), { scale: 30, amount: 0.25, extra: WEATHER('0.22', '0.3') });
   },
   roughGranite() {
     return addMacro(new THREE.MeshStandardMaterial({

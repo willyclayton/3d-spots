@@ -17,6 +17,10 @@ import { WalkWorld } from './walkworld.js';
 import { profileRangeAt } from './interiors/build.js';
 import { createUI } from './ui.js';
 import { createTour } from './tour.js';
+import { installAtmosphere } from '../../shared/engine/atmosphere.js';
+import { buildScatter, buildPalms } from './scatter.js';
+
+installAtmosphere({ groundY: -45, scaleHeight: 320 });
 
 const params = new URLSearchParams(location.search);
 const coarse = matchMedia('(pointer: coarse)').matches;
@@ -35,7 +39,7 @@ try {
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : quality === 'medium' ? 1.5 : 1));
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = THREE.CustomToneMapping;   // ACES + film grade (atmosphere.js)
 renderer.toneMappingExposure = 0.62;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -101,6 +105,20 @@ async function init() {
     }
   }
   terrain.setHoles(holes);
+  // contact shadows where monuments stand on the ground
+  const aoRects = [];
+  for (const { P, half } of Object.values(pyr.info)) aoRects.push({ x0: P.cx - half, x1: P.cx + half, z0: P.cz - half, z1: P.cz + half, blur: 5, k: 0.55 });
+  for (const sp of pyr.small) aoRects.push({ x0: sp.sp.cx - sp.half, x1: sp.sp.cx + sp.half, z0: sp.sp.cz - sp.half, z1: sp.sp.cz + sp.half, blur: 3, k: 0.5 });
+  for (const o of complex.obstacles.today) aoRects.push({ ...o, blur: 1.1, k: 0.28 });
+  aoRects.push({ x0: SPHINX.cx - 37, x1: SPHINX.cx + 37, z0: SPHINX.cz - 7.5, z1: SPHINX.cz + 7.5, blur: 2.5, k: 0.45 });
+  terrain.buildAO(aoRects);
+
+  progress(0.72, 'Scattering stones and palms'); await nextFrame();
+  const blocked = complex.obstacles.today.concat(Object.values(pyr.info).map(({ P, half }) => ({ x0: P.cx - half, x1: P.cx + half, z0: P.cz - half, z1: P.cz + half })),
+    pyr.small.map((sp) => ({ x0: sp.sp.cx - sp.half, x1: sp.sp.cx + sp.half, z0: sp.sp.cz - sp.half, z1: sp.sp.cz + sp.half })));
+  const scatter = buildScatter(terrain, { blocked, ruins: complex.obstacles.today, quality });
+  const palms = buildPalms(terrain, { quality });
+  scene.add(scatter, palms.today, palms.built);
 
   progress(0.74, 'Carving the Sphinx'); await nextFrame();
   const sphinx = loadSphinx(quality);
@@ -112,7 +130,7 @@ async function init() {
   const stairs = [buildStairs(pyr.info.khufu, 'robbers'), buildStairs(pyr.info.menkaure, 'entr')];
   stairs.forEach((st) => scene.add(st.mesh));
 
-  Object.assign(app, { terrain, ground, skirt, pyr, rubble, interiors, complex, sphinx, stairs });
+  Object.assign(app, { terrain, ground, skirt, pyr, rubble, interiors, complex, sphinx, stairs, scatter, palms });
 
   // ---- tools
   const section = new SectionTool({ scene, pyr, interiors, terrain });
@@ -194,6 +212,8 @@ async function init() {
     sw: [[-700, 60, 560], [-340, 50, 340]],
     sphinx: [[430, -25, 470], [330, -30, 434]],
     panorama: [[-660, 92, 1345], [-330, 55, 420]],
+    close: [[-420, 14, 470], [-380, 10, 448]],
+    north: [[25, 3.5, -150], [0, 25, -110]],
     hero: [[620, 260, 760], [-170, 20, 280]],
     portrait: [[-820, 560, 1080], [-300, 15, 380]],
   };
@@ -492,6 +512,8 @@ function setEra(era) {
   if (app.hulls) app.hulls.children.forEach((l) => { l.visible = l.userData.era === era; });
   complex.today.visible = today; complex.built.visible = !today;
   complex.city.visible = today && state.showCity;
+  app.scatter.visible = today;
+  app.palms.today.visible = today; app.palms.built.visible = !today;
   sphinx.group.userData.setEra(era);
   stairs.forEach((st) => { st.mesh.visible = today; });
   app.terrain.uniforms.uEra.value = today ? 0 : 1;
@@ -731,6 +753,7 @@ function startLoop() {
     }
     app.sky.fitShadow(focus, radius);
     app.tour.tick(dt);
+    if (state.era === 'built') { const nm = app.complex.water.material.normalMap; nm.offset.x += dt * 0.012; nm.offset.y += dt * 0.007; }
     applyViewOffset();
     updateLights(dt);
     envTimer += dt;

@@ -7,6 +7,8 @@ import { SITE, PYRAMIDS, SMALL_PYRAMIDS, SPHINX, COMPLEX } from './data/site.js'
 import { TEX } from './materials.js';
 
 const HM = { cx: -100, cz: 350, size: 5120, res: 512 };
+const WHITE = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+WHITE.needsUpdate = true;
 const MASK = { x0: -1100, z0: -600, size: 1900, px: 2048 };
 
 export class Terrain {
@@ -103,8 +105,17 @@ export class Terrain {
     // Khufu's quarry (Central Field), an irregular rock-cut basin
     {
       const qx = (x - 135) / 115, qz = (z - 262) / 78;
-      const r = Math.sqrt(qx * qx + qz * qz) + (fbm2(x * 0.02, z * 0.02, 2, 9) - 0.5) * 0.35;
-      if (r < 1.05) h -= 7.5 * (1 - smoothstep(0.75, 1.05, r));
+      // blocks were cut in a grid, so the worked faces run straight: blend a
+      // box distance into the round one, then roughen it
+      const rE = Math.sqrt(qx * qx + qz * qz), rB = Math.max(Math.abs(qx), Math.abs(qz)) * 0.92;
+      const r = lerp(rE, rB, 0.55) + (fbm2(x * 0.018, z * 0.018, 3, 9) - 0.5) * 0.55;
+      if (r < 1.1) {
+        // worked-out floor in a few rock-cut terraces with short steep faces
+        const f = (1 - smoothstep(0.5, 1.05, r)) * 3 + (fbm2(x * 0.06, z * 0.06, 2, 19) - 0.5) * 0.5;
+        const i = Math.floor(f), fr = f - i;
+        const terr = clamp((i + smoothstep(0.82, 1.0, fr)) / 3, 0, 1);
+        h -= 5.0 * (0.3 * (1 - smoothstep(0.6, 1.1, r)) + 0.7 * terr);
+      }
     }
     // Sphinx enclosure: rim raised on N, W, S; floor levelled
     {
@@ -270,6 +281,40 @@ export class Terrain {
     this.zoneTex = zt;
   }
 
+  // Contact shadows: darken the ground where monuments meet it.
+  // rects: [{x0,x1,z0,z1, blur (m), k (0..1)}] in world units
+  buildAO(rects) {
+    const N = 1024, k = N / MASK.size;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = N;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, N, N);
+    for (const r of rects) {
+      ctx.save();
+      ctx.filter = `blur(${Math.max(0.5, r.blur * k)}px)`;
+      ctx.fillStyle = `rgba(0,0,0,${r.k})`;
+      ctx.fillRect((r.x0 - MASK.x0) * k, (r.z0 - MASK.z0) * k, (r.x1 - r.x0) * k, (r.z1 - r.z0) * k);
+      ctx.restore();
+    }
+    const t = new THREE.CanvasTexture(cv);
+    t.flipY = false; t.colorSpace = THREE.NoColorSpace;
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    if (this.uniforms) this.uniforms.uAO.value = t;
+    this.aoTex = t;
+  }
+
+  // is (x,z) on a modern road? (from the splat mask)
+  isRoad(x, z) {
+    if (!this._maskPx) {
+      const c = this.maskTex.image;
+      this._maskPx = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    }
+    const k = MASK.px / MASK.size;
+    const i = Math.floor((x - MASK.x0) * k), j = Math.floor((z - MASK.z0) * k);
+    if (i < 0 || j < 0 || i >= MASK.px || j >= MASK.px) return false;
+    return this._maskPx[(j * MASK.px + i) * 4] > 60;
+  }
+
   // rectangular holes in the ground (pits, shafts, passage mouths)
   setHoles(list) {
     const U = this.uniforms;
@@ -293,6 +338,7 @@ export class Terrain {
       tSand: { value: TEX.sand }, tSandN: { value: TEX.sandN },
       tRock: { value: TEX.rock }, tRockN: { value: TEX.rockN },
       tLime: { value: TEX.limestone }, tAsph: { value: TEX.asphalt },
+      uAO: { value: this.aoTex || WHITE },
       uHoles: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e6, 1e6, 0, 0)) },
       uHoleAng: { value: new Array(16).fill(0) },
     };
@@ -305,7 +351,7 @@ export class Terrain {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
           varying vec3 vWPos; varying vec3 vWNrm;
-          uniform sampler2D uMask, uZone, uNoise, tGravel, tGravelN, tSand, tSandN, tRock, tRockN, tLime, tAsph;
+          uniform sampler2D uMask, uZone, uNoise, tGravel, tGravelN, tSand, tSandN, tRock, tRockN, tLime, tAsph, uAO;
           uniform vec4 uMaskRect, uZoneRect; uniform float uEra;
           uniform vec4 uHoles[16]; uniform float uHoleAng[16];
           float sandW, rockW, paveW, roadW, zoneW, slopeW;
@@ -362,6 +408,7 @@ const TERRAIN_ALBEDO = /* glsl */`
   field *= mix(0.8, 1.15, texture2D(uNoise, wp / 9.0).a);
   col = mix(col, mix(urban, field, uEra), smoothstep(0.15, 0.6, zoneW));
   col *= mix(0.95, 1.07, nz.g) * 1.3;
+  if (muv.x > 0.0 && muv.y > 0.0 && muv.x < 1.0 && muv.y < 1.0) col *= texture2D(uAO, muv).r;
   diffuseColor.rgb *= col;
 `;
 
