@@ -164,7 +164,11 @@ export function createUI(app, act) {
     off.min = lo.toFixed(1); off.max = hi.toFixed(1); off.value = s.offset;
     $('secOffsetLabel').textContent = s.plane === 'x' ? 'Move cut  W ↔ E' : 'Move cut  N ↔ S';
   }
-  $('secTarget').addEventListener('change', (e) => { act.setSection(true, { target: e.target.value }); syncSectionBar(); });
+  $('secTarget').addEventListener('change', (e) => {
+    const sel = PLACES.find((q) => q.id === state.selected);
+    if (sel && sel.pyr && sel.pyr !== e.target.value) hideInfo();
+    act.setSection(true, { target: e.target.value }); syncSectionBar();
+  });
   off.addEventListener('input', () => { app.section.set({ offset: parseFloat(off.value) }); });
   $('secFlip').addEventListener('click', () => {
     app.section.set({ flip: !app.section.flip });

@@ -441,13 +441,14 @@ function walkSpawn() {
       }
     }
   }
-  // default: between Khufu and Khafre, looking at the sunlit side of the Great Pyramid
-  const pos = ground(-120, 200);
-  return { pos, yaw: face(pos, 0, 0) };
+  // default: south of the Great Pyramid, looking north-west at Khufu and Khafre
+  const pos = ground(70, 300);
+  return { pos, yaw: face(pos, -150, 120), hint: 'Tip: open Places and choose “Walk here” to go inside a pyramid' };
 }
 
 function enterWalkAt(p) {
   let pos, yaw = 0;
+  if (p.era && p.era !== state.era) setEra(p.era);   // e.g. the robbers' tunnel only exists today
   if (p._direct) { pos = p._direct.pos.clone(); yaw = p._direct.yaw; }
   else if (p.walk?.local && p.pyr) {
     const P = PYRAMIDS[p.pyr];
@@ -649,7 +650,12 @@ function viewFor(p) {
     target.y + Math.sin(pitch) * dist,
     target.z - Math.cos(yaw) * Math.cos(pitch) * dist,
   );
-  if (v.look) target.set(...v.look);
+  if (v.look) {
+    target.set(...v.look);
+    // narrow screens: step back along the line of sight so the whole scene fits
+    const k = Math.min(1.7, fitScale() * 0.85);
+    if (k > 1) pos.sub(target).multiplyScalar(k).add(target);
+  }
   const gy = app.terrain.heightAt(pos.x, pos.z, false) + 3;
   if (pos.y < gy) pos.y = gy;
   return { pos, target };
@@ -779,7 +785,7 @@ function updateLights(dt) {
     const c = lamps[i];
     if (c && c.d < 80) {
       pl.position.set(c.x, c.y, c.z);
-      pl.intensity = c.l.i * (inside ? 20 : 45);
+      pl.intensity = c.l.i * (inside ? 20 : 22);
       pl.distance = c.l.d * (inside ? 2.2 : 2.5);
     } else pl.intensity = 0;
   });

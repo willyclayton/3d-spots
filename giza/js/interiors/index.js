@@ -52,11 +52,15 @@ export function buildInteriors(pyrInfo) {
       const geo = new THREE.ExtrudeGeometry(shape, { depth: v.x1 - v.x0, bevelEnabled: false });
       geo.rotateY(-Math.PI / 2);         // extrude along -x: shape x->z
       geo.translate(v.x1, 0, 0);
-      const mat = new THREE.MeshBasicMaterial({ color: 0x7fd4ff, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
+      // a scan result, not a room: drawn through the stone like an overlay
+      const mat = new THREE.MeshBasicMaterial({ color: 0x7fd4ff, transparent: true, opacity: 0.28, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
       const m = new THREE.Mesh(geo, mat);
-      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineDashedMaterial({ color: 0x9fe3ff, dashSize: 0.8, gapSize: 0.5, transparent: true, opacity: 0.9 }));
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineDashedMaterial({ color: 0xbfeeff, dashSize: 0.8, gapSize: 0.5, transparent: true, opacity: 0.95, depthTest: false }));
       edges.computeLineDistances();
+      m.renderOrder = edges.renderOrder = 8;
+      m.userData.noClip = edges.userData.noClip = true;
       const vg = new THREE.Group(); vg.add(m, edges); vg.name = 'void-' + v.id; vg.visible = false;
+      vg.userData.noClip = true;
       group.add(vg); voidMeshes.push(vg);
     }
     out[id] = {

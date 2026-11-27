@@ -438,6 +438,14 @@ export function buildSmoothCasing(opts) {
       }
     }
   }
+  // the strips above are wound clockwise as seen from outside: flip every
+  // triangle so the casing faces outward (otherwise it is culled from outside)
+  const swap = (arr, n) => {
+    for (let t = 0; t < arr.length; t += 3 * n) {
+      for (let k = 0; k < n; k++) { const a = t + n + k, b = t + 2 * n + k; const tmp = arr[a]; arr[a] = arr[b]; arr[b] = tmp; }
+    }
+  };
+  swap(pos, 3); swap(nor, 3); swap(uv, 2); swap(course, 1);
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));

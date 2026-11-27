@@ -276,6 +276,6 @@ export const Mats = {
     return new THREE.MeshStandardMaterial({ color: 0x8a8d90, roughness: 0.45, metalness: 0.7, vertexColors: true });
   },
   lamp() {
-    return new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff1d6, emissiveIntensity: 3.0, roughness: 0.4 });
+    return new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff1d6, emissiveIntensity: 1.6, roughness: 0.4 });
   },
 };

@@ -25,6 +25,7 @@ export function createTour(app, act) {
   };
   const walkPath = (start, yawDeg, pts, speed = 3.0) => async () => {
     act.setSection(false); act.setXray(false);
+    if (app.state.era !== 'today') act.setEra('today');   // the route uses the robbers' tunnel
     const s = kw(start[0], start[1]);
     if (app.state.mode !== 'walk' || app.walk.feet.distanceTo(new THREE.Vector3(s.x, app.walk.feet.y, s.z)) > 3) {
       act.walkFrom(s, yawDeg);
