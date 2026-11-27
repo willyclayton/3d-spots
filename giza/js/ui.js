@@ -162,7 +162,7 @@ export function createUI(app, act) {
     syncPlane(s.plane);
     const [lo, hi] = s.range();
     off.min = lo.toFixed(1); off.max = hi.toFixed(1); off.value = s.offset;
-    $('secOffsetLabel').textContent = s.plane === 'x' ? 'East ↔ west' : 'North ↔ south';
+    $('secOffsetLabel').textContent = s.plane === 'x' ? 'Move cut  W ↔ E' : 'Move cut  N ↔ S';
   }
   $('secTarget').addEventListener('change', (e) => { act.setSection(true, { target: e.target.value }); syncSectionBar(); });
   off.addEventListener('input', () => { app.section.set({ offset: parseFloat(off.value) }); });

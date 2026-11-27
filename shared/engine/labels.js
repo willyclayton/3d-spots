@@ -3,7 +3,9 @@
 import * as THREE from 'three';
 
 export class LabelLayer {
-  constructor(container, camera, { onSelect } = {}) {
+  // reserved(): screen rectangles (DOMRect-like) that labels must not cover
+  constructor(container, camera, { onSelect, reserved } = {}) {
+    this.reserved = reserved;
     this.root = container;
     this.camera = camera;
     this.items = [];
@@ -72,11 +74,14 @@ export class LabelLayer {
     // declutter: selected first, then by priority then distance
     cand.sort((a, b) => (b.id === this.selected) - (a.id === this.selected) || a.prio - b.prio || a.dist - b.dist);
     const placed = [];
+    if (this.reserved) for (const q of this.reserved()) placed.push({ x0: q.left, x1: q.right, y0: q.top, y1: q.bottom });
     for (const it of cand) {
       if (!it.w) { it.w = it.el.offsetWidth || 120; it.h = it.el.offsetHeight || 28; }
       const r = { x0: it.sx - it.w / 2 - 4, x1: it.sx + it.w / 2 + 4, y0: it.sy - it.h - 18, y1: it.sy + 4 };
-      let ok = true;
+      // keep labels fully on screen
+      let ok = r.x0 >= 2 && r.x1 <= width - 2 && r.y0 >= 2 && r.y1 <= height - 2;
       for (const q of placed) {
+        if (!ok) break;
         if (r.x0 < q.x1 && r.x1 > q.x0 && r.y0 < q.y1 && r.y1 > q.y0) { ok = false; break; }
       }
       if (ok) {

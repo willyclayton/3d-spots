@@ -61,13 +61,13 @@ export const PLACES = [
   // ---------------------------------------------------- inside Khufu ------
   {
     id: 'k-entrance', name: 'Original entrance', group: 'khufu', kind: 'passage', prio: 2, pyr: 'khufu', exterior: true,
-    local: [7.29, 19.5, -99], view: { dist: 26, yaw: 180, pitch: 8 },
+    local: [7.29, 19.5, -99], view: { dist: 30, yaw: 12, pitch: 10 },
     desc: 'The true entrance is 17 m above the ground on the north face, 7.3 m east of the centre line. Two pairs of huge limestone gable stones (“chevrons”) above it spread the weight of the masonry. In antiquity it was hidden behind the casing.',
     facts: [['Height above base', '17 m'], ['Offset', '7.29 m east of centre']],
   },
   {
     id: 'k-robbers', name: 'Al-Ma’mun’s tunnel (visitor entrance)', group: 'khufu', kind: 'passage', prio: 2, pyr: 'khufu', exterior: true, era: 'today',
-    local: [-0.6, 8.5, -106], view: { dist: 22, yaw: 180, pitch: 5 }, walk: { local: [-0.6, 7.2, -100], yaw: 180 },
+    local: [-0.6, 8.5, -106], view: { dist: 28, yaw: 345, pitch: 8 }, walk: { local: [-0.6, 7.2, -100], yaw: 180 },
     desc: 'Tradition says the Caliph al-Ma’mun’s workmen forced this tunnel around 820 CE. Digging blindly into the masonry, they broke into the passage system just above the granite plugs. Visitors still enter the pyramid this way.',
     facts: [['Dug', 'c. 820 CE (traditionally)'], ['Length', 'about 35 m']],
   },
@@ -165,13 +165,13 @@ export const PLACES = [
   // ---------------------------------------------------- inside Khafre -----
   {
     id: 'kh-upper', name: 'Upper entrance', group: 'khafre', kind: 'passage', prio: 3, pyr: 'khafre', exterior: true,
-    local: [6.0, 13, -96], view: { dist: 26, yaw: 180, pitch: 8 },
+    local: [6.0, 13, -96], view: { dist: 30, yaw: 12, pitch: 10 },
     desc: 'The main entrance, 11.5 m up the north face. The passage is lined with granite where it runs through the masonry and then levels out in the bedrock.',
     facts: [['Height', '11.5 m above the base'], ['Angle', 'about 26°']],
   },
   {
     id: 'kh-lower', name: 'Lower entrance', group: 'khafre', kind: 'passage', prio: 3, pyr: 'khafre', exterior: true,
-    local: [6.0, 1, -113], view: { dist: 24, yaw: 180, pitch: 20 },
+    local: [6.0, 1, -113], view: { dist: 26, yaw: 20, pitch: 22 },
     desc: 'A second entrance cut into the pavement in front of the pyramid. Its passage dives into the rock, passes a subsidiary chamber and climbs again to join the upper passage.',
     facts: [['Angle', 'about 21° 40′']],
   },

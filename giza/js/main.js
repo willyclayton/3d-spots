@@ -108,8 +108,9 @@ async function init() {
   sphinx.group.userData.setEra('today');
 
   // modern stairs up to the robbers' tunnel
-  const stairs = buildStairs(pyr.info.khufu);
-  scene.add(stairs.mesh);
+  // modern visitor stairs: Khufu (al-Ma'mun's tunnel) and Menkaure
+  const stairs = [buildStairs(pyr.info.khufu, 'robbers'), buildStairs(pyr.info.menkaure, 'entr')];
+  stairs.forEach((st) => scene.add(st.mesh));
 
   Object.assign(app, { terrain, ground, skirt, pyr, rubble, interiors, complex, sphinx, stairs });
 
@@ -141,7 +142,22 @@ async function init() {
   Object.assign(app, { pool, torch, fill });
 
   // ---- labels
-  const labels = new LabelLayer(document.getElementById('labels'), camera, { onSelect: (id) => selectPlace(id) });
+  const reservedIds = ['toolbar', 'sectionBar', 'tour', 'info', 'compass', 'placesBtn', 'places', 'settings'];
+  const labels = new LabelLayer(document.getElementById('labels'), camera, {
+    onSelect: (id) => selectPlace(id),
+    reserved: () => {
+      const out = [];
+      const tb = document.querySelector('.topbar');
+      if (tb) { const r = tb.getBoundingClientRect(); out.push({ left: r.left, right: r.left + Math.min(r.width, 330), top: r.top, bottom: r.bottom + 4 }); }
+      for (const id of reservedIds) {
+        const el = document.getElementById(id);
+        if (!el || el.classList.contains('hidden') || el.offsetParent === null) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width && r.height) out.push(r);
+      }
+      return out;
+    },
+  });
   app.labels = labels;
   setupLabels();
 
@@ -153,15 +169,14 @@ async function init() {
   const presetViews = {
     hero: [[620, 260, 760], [-170, 20, 280]],
     default: [[760, 230, 1180], [-230, 25, 330]],
+    portrait: [[-820, 560, 1080], [-300, 15, 380]],
   };
   app.tour = createTour(app, {
     setMode, setEra, setXray, setSection, selectPlace,
     placeById: (id) => PLACES.find((q) => q.id === id),
     flyToView: (name) => {
-      const [p, t] = presetViews[name];
-      const tgt = new THREE.Vector3(...t);
-      const pos = new THREE.Vector3(...p).sub(tgt).multiplyScalar(Math.min(1.6, fitScale())).add(tgt);
-      return flyTo(pos, tgt);
+      const [p, t] = presetViews[camera.aspect < 0.8 ? 'portrait' : name];
+      return flyTo(new THREE.Vector3(...p), new THREE.Vector3(...t));
     },
     walkFrom: (pos, yawDeg) => {
       pos.y = app.terrain.heightAt(pos.x, pos.z);
@@ -180,7 +195,10 @@ async function init() {
     sphinx: [[430, -25, 470], [330, -30, 434]],
     panorama: [[-660, 92, 1345], [-330, 55, 420]],
     hero: [[620, 260, 760], [-170, 20, 280]],
+    portrait: [[-820, 560, 1080], [-300, 15, 380]],
   };
+  // tall phone screens: look up the line of pyramids from the south-west instead
+  if (camera.aspect < 0.8) views.default = views.portrait;
   const [cp, ct] = views[v] || views.default;
   camera.position.set(...cp); controls.target.set(...ct); controls.update();
   app.home = { pos: new THREE.Vector3(...views.default[0]), target: new THREE.Vector3(...views.default[1]) };
@@ -212,7 +230,7 @@ function setupWorld() {
   const { world, interiors, pyr, complex } = app;
   const vols = Object.values(interiors).map((it) => ({ id: it.id, P: it.P, vols: it.eras[state.era].walk }));
   world.setInteriorVolumes(vols);
-  if (state.era === 'today') world.addVolume(app.stairs.volume);
+  if (state.era === 'today') app.stairs.forEach((st) => world.addVolume(st.volume));
   world.footprints = Object.values(pyr.info).map(({ P, S }) => ({ x0: P.cx - S[0] - 0.3, x1: P.cx + S[0] + 0.3, z0: P.cz - S[0] - 0.3, z1: P.cz + S[0] + 0.3 }));
   for (const s of pyr.small) world.footprints.push({ x0: s.sp.cx - s.half, x1: s.sp.cx + s.half, z0: s.sp.cz - s.half, z1: s.sp.cz + s.half });
   world.obstacles = complex.obstacles[state.era].slice();
@@ -223,8 +241,8 @@ function setupWorld() {
 }
 
 // modern stair and landing up the north face to al-Ma'mun's tunnel
-function buildStairs(info) {
-  const e = info.ents.find((q) => q.id === 'robbers');
+function buildStairs(info, entId) {
+  const e = info.ents.find((q) => q.id === entId);
   const P = info.P;
   const x0 = P.cx + e.u - 1.2, x1 = P.cx + e.u + 1.2;
   const zTop = P.cz - e.aBack, zFace = P.cz - (info.half + 6), yTop = P.baseY + e.yFloorBack;
@@ -360,19 +378,11 @@ function setMode(mode, opts = {}) {
     controls.enabled = false;
     if (state.section) setSection(false);
     if (state.xray) setXray(false);
-    // drop in where we were looking, facing the same way
-    const t = controls.target.clone();
-    const dir = t.clone().sub(camera.position).setY(0);
-    if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
-    dir.normalize();
-    let pos = t.clone().addScaledVector(dir, -14);
-    if (camera.position.distanceTo(t) > 700) { pos.set(60, 0, -175); t.set(0, 60, 0); }
-    pos.y = app.terrain.heightAt(pos.x, pos.z);
-    if (!app.world.fits(pos.x, pos.z, pos.y)) { pos.set(60, 0, -175); pos.y = app.terrain.heightAt(60, -175); t.set(0, 60, 0); }
-    const yaw = Math.atan2(-(t.x - pos.x), -(t.z - pos.z));
-    walk.enable(pos, yaw, 0);
+    const sp = walkSpawn();
+    if (state.section) setSection(false);
+    walk.enable(sp.pos, sp.yaw, 0);
     camera.near = 0.05; camera.updateProjectionMatrix();
-    app.ui.toast(coarse ? 'Walk mode: joystick to move, drag to look' : 'Walk mode: W A S D to move, click to look around');
+    app.ui.toast(sp.hint || (coarse ? 'Walk mode: joystick to move, drag to look' : 'Walk mode: W A S D to move, click to look around'));
   } else {
     state.mode = mode;
     const wasInside = walk.inside;
@@ -385,6 +395,55 @@ function setMode(mode, opts = {}) {
     if (wasInside) setSection(true, { target: wasInside });
   }
   app.ui.syncMode(mode);
+}
+
+// Where to put the visitor when they switch to Walk.
+function walkSpawn() {
+  const face = (pos, tx, tz) => Math.atan2(-(tx - pos.x), -(tz - pos.z));
+  const ground = (x, z) => new THREE.Vector3(x, app.terrain.heightAt(x, z), z);
+  // which pyramid is the visitor looking at (or inside)?
+  let pid = null;
+  if (state.section) pid = app.section.target;
+  const sel = PLACES.find((q) => q.id === state.selected);
+  if (!pid && sel?.pyr && !sel.exterior) pid = sel.pyr;
+  if (!pid) {
+    for (const { P, half } of Object.values(app.pyr.info)) {
+      const t = controls.target;
+      if (Math.abs(t.x - P.cx) < half + 10 && Math.abs(t.z - P.cz) < half + 10 && camera.position.distanceTo(t) < 900) pid = P.id;
+    }
+  }
+  if (pid) {
+    const P = PYRAMIDS[pid];
+    const spots = {
+      khufu: [app.pyr.info.khufu.ents.find((e) => e.id === 'robbers').u, -133],
+      khafre: [6.0, -122],
+      menkaure: [0, -70],
+    };
+    const [lx, lz] = spots[pid];
+    const pos = ground(P.cx + lx, P.cz + lz);
+    const hint = state.era === 'built'
+      ? 'In 2560 BCE the entrances were sealed: open Places to jump inside'
+      : pid === 'khafre' ? 'The lower entrance is the opening in the pavement ahead'
+        : 'Walk up the stairs ahead into the pyramid';
+    return { pos, yaw: face(pos, P.cx + lx, P.cz), hint };
+  }
+  // outdoors: stand where we were looking, facing the same way
+  const t = controls.target;
+  const fwd = t.clone().sub(camera.position).setY(0);
+  const yaw = fwd.lengthSq() > 1e-6 ? Math.atan2(-fwd.x, -fwd.z) : 0;
+  if (camera.position.distanceTo(t) < 900) {
+    for (let r = 0; r <= 60; r += 6) {
+      for (let k = 0; k < (r ? 8 : 1); k++) {
+        const a = (k / 8) * Math.PI * 2;
+        const x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r;
+        const y = app.terrain.heightAt(x, z);
+        if (app.world.fits(x, z, y)) return { pos: new THREE.Vector3(x, y, z), yaw };
+      }
+    }
+  }
+  // default: between Khufu and Khafre, looking at the sunlit side of the Great Pyramid
+  const pos = ground(-120, 200);
+  return { pos, yaw: face(pos, 0, 0) };
 }
 
 function enterWalkAt(p) {
@@ -433,7 +492,7 @@ function setEra(era) {
   complex.today.visible = today; complex.built.visible = !today;
   complex.city.visible = today && state.showCity;
   sphinx.group.userData.setEra(era);
-  stairs.mesh.visible = today;
+  stairs.forEach((st) => { st.mesh.visible = today; });
   app.terrain.uniforms.uEra.value = today ? 0 : 1;
   app.section.era = era;
   if (state.section) app.section.update();

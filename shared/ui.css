@@ -158,7 +158,8 @@ body.places-collapsed .fab { display: inline-flex; }
 
 /* modal */
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 50; display: grid; place-items: center; padding: 16px; }
-.modal-card { position: relative; max-width: 760px; width: 100%; max-height: 90vh; overflow: auto; background: var(--glass-strong); border: 1px solid var(--line); border-radius: 18px; padding: 22px 24px; box-shadow: var(--shadow); }
+.modal { backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.modal-card { position: relative; max-width: 760px; width: 100%; max-height: 90vh; overflow: auto; background: rgba(22,17,12,.97); border: 1px solid var(--line); border-radius: 18px; padding: 22px 24px; box-shadow: var(--shadow); }
 .modal-card h2 { margin: 0 0 12px; font: 600 24px var(--serif); }
 .modal-close { position: absolute; right: 10px; top: 10px; }
 .help-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 22px; }
@@ -203,9 +204,11 @@ kbd { display: inline-block; min-width: 20px; text-align: center; padding: 1px 6
   #info.compact #infoDesc { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   #info.compact .facts { display: none; }
   #info .more-toggle { display: inline-block !important; }
-  .subbar { bottom: 72px; gap: 6px; padding: 6px 8px; }
-  .field.grow input[type=range] { width: 130px; }
+  .subbar { bottom: 76px; left: 8px; right: 8px; transform: none; max-width: none; gap: 6px 8px; padding: 8px 10px; justify-content: flex-start; }
+  .subbar .field.grow { order: 5; flex: 1 1 100%; }
+  .field.grow input[type=range] { flex: 1; width: auto; min-width: 0; }
   .field > span { display: none; }
+  .field.grow > span { display: inline; white-space: nowrap; font-size: 12px; }
   .help-grid { grid-template-columns: 1fr; }
   #compass { width: 46px; height: 46px; top: 12px; }
   #compass .s { top: 38px; } #compass .e { left: 38px; }

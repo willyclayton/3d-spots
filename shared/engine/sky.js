@@ -84,7 +84,7 @@ export class SkySystem {
 
     this.interior = 0;           // 0 outdoors .. 1 deep inside (eye adaptation)
     this.exposureBase = 0.62;
-    this.envDay = 0.34;
+    this.envDay = 0.46;
     this.date = new Date();
     this.hours = 15.5;
   }
@@ -125,7 +125,7 @@ export class SkySystem {
     this.sun.intensity = this.sunIntensity * (1 - this.interior);
     // the sky dome itself comes from the environment map; the hemisphere light
     // only adds warm light bounced off the sand (upward-facing surfaces get none)
-    this.hemiIntensity = lerp(0.05, 0.42, day) * lerp(1, 0.7, low);
+    this.hemiIntensity = lerp(0.05, 0.55, day) * lerp(1, 0.75, low);
     this.hemi.intensity = this.hemiIntensity * (1 - this.interior * 0.97);
     this.hemi.color.setRGB(0.10, 0.11, 0.13);
     this.hemi.groundColor.setRGB(0.80, 0.62, 0.42);
