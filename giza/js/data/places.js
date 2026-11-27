@@ -217,19 +217,19 @@ export const PLACES = [
   // ------------------------------------------------- sphinx & temples -----
   {
     id: 'sphinx', name: 'Great Sphinx', group: 'sphinx', kind: 'monument', prio: 1,
-    world: [334, -24, 434], view: { dist: 95, yaw: 70, pitch: 10, ty: -32 },
+    world: [340, -20, 434], view: { dist: 105, yaw: 128, pitch: 13, ty: -12 },
     desc: 'A lion with a king’s head, carved from the bedrock left standing in a quarry, most likely for Khafre. Its soft lower layers have eroded far more than the harder head. The nose was deliberately chiselled off, probably in the 14th century CE. Between the paws stands the Dream Stele of Thutmose IV (c. 1400 BCE).',
     facts: [['Length', '73 m'], ['Height', '20 m'], ['Face', '4.1 m wide'], ['Material', 'living bedrock, with later masonry repairs']],
   },
   {
     id: 'sphinx-temple', name: 'Sphinx Temple', group: 'sphinx', kind: 'temple', prio: 2,
-    world: [395, null, 425], view: { dist: 80, yaw: 120, pitch: 25 },
+    world: [395, null, 425], view: { dist: 85, yaw: 100, pitch: 32 },
     desc: 'An unfinished temple directly in front of the Sphinx, built from limestone blocks quarried out of the Sphinx enclosure itself. Its open court had 24 pillars.',
     facts: [['Builder', 'Khafre (probably)']],
   },
   {
     id: 'valley-khafre', name: 'Valley Temple of Khafre', group: 'sphinx', kind: 'temple', prio: 2,
-    world: [375, null, 471], view: { dist: 80, yaw: 140, pitch: 25 },
+    world: [375, null, 471], view: { dist: 90, yaw: 140, pitch: 32 },
     desc: 'One of the best-preserved Old Kingdom buildings: a massive limestone core faced with polished red granite, with a T-shaped hall of granite pillars and a travertine floor. Auguste Mariette found the famous diorite statue of Khafre protected by Horus here in 1860.',
     facts: [['Facing', 'red granite'], ['Statue found', '1860']],
   },

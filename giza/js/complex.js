@@ -18,7 +18,8 @@ export function buildComplex(terrain, { quality = 'high' } = {}) {
   const H = (x, z) => terrain.heightAt(x, z);
 
   const M = {
-    stone: Mats.coreStone(), plaster: Mats.plaster(), granite: Mats.roughGranite(), rock: Mats.rock({ tile: 7 }),
+    stone: Mats.masonry(), plaster: Mats.plaster(), granite: Mats.roughGranite(), rock: Mats.rock({ tile: 7 }),
+    big: Mats.masonry({ course: 2.2, color: 0xe2d0b2 }),
     mud: Mats.mudbrick(), basalt: Mats.basalt(), tura: Mats.weatheredCasing(),
   };
   const add = (gb, mat, grp, shadow = true) => {
@@ -105,11 +106,13 @@ export function buildComplex(terrain, { quality = 'high' } = {}) {
       for (const [p, q, u, v] of parts) {
         wall(gBuilt, p, q, u, v, y0, hBuilt, [obstacles.built]);
         // ruined: broken into segments of varying height
-        const len = Math.max(u - p, v - q), n = Math.max(1, Math.round(len / 6));
+        const len = Math.max(u - p, v - q), n = Math.max(1, Math.round(len / 3.5));
+        const ph = rnd() * 10;
         for (let k = 0; k < n; k++) {
           const f0 = k / n, f1 = (k + 1) / n;
-          const hh = hToday * (0.25 + rnd() * 0.75);
-          if (rnd() < 0.12) continue;
+          const wave = 0.55 + 0.45 * Math.sin(ph + k * 0.7) * Math.sin(ph * 0.3 + k * 0.23);
+          const hh = hToday * Math.min(1, Math.max(0.15, wave + (rnd() - 0.5) * 0.25));
+          if (rnd() < 0.06) continue;
           const [aa, bb, cc, dd] = (u - p) > (v - q) ? [lerp(p, u, f0), q, lerp(p, u, f1), v] : [p, lerp(q, v, f0), u, lerp(q, v, f1)];
           wall(gToday, aa, bb, cc, dd, y0, hh, [obstacles.today]);
         }
@@ -172,7 +175,7 @@ export function buildComplex(terrain, { quality = 'high' } = {}) {
   }
   // Menkaure valley temple (mudbrick)
   temple(COMPLEX.menkaureValleyTemple, terrain.pads.find((p) => p.x0 < 60 && p.x1 > 90 && p.z0 < 790)?.y ?? H(75, 790), 7, 0.8, mudB, mudT, 3, 'e', 0.3);
-  add(wallsT, M.stone, today); add(wallsB, M.plaster, built);
+  add(wallsT, M.big, today); add(wallsB, M.plaster, built);
   add(graniteT, M.granite, today); add(graniteB, M.granite, built);
   add(mudT, M.mud, today); add(mudB, M.mud, built);
 

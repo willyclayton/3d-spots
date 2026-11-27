@@ -129,6 +129,41 @@ export const Mats = {
     addMacro(m, { scale: 45, amount: 0.2 });
     return addJoints(m);
   },
+  // generic ashlar masonry: courses and staggered joints drawn in world space
+  masonry({ course = 1.15, color = 0xead9bd, joint = 0.35 } = {}) {
+    const m = new THREE.MeshStandardMaterial({
+      map: tex('limestone', 2.0), normalMap: tex('limestoneN', 2.0), normalScale: new THREE.Vector2(1.3, 1.3),
+      vertexColors: true, roughness: 0.93, color: new THREE.Color(color),
+    });
+    addMacro(m, { scale: 25, amount: 0.22 });
+    const prev = m.onBeforeCompile;
+    m.onBeforeCompile = (sh, r) => {
+      prev(sh, r);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMN;')
+        .replace('#include <fog_vertex>', '#include <fog_vertex>\nvMN = normalize(mat3(modelMatrix) * objectNormal);');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vMN;\nfloat mh(float n){return fract(sin(n*127.1)*43758.5453);}')
+        .replace('#include <map_fragment>', `#include <map_fragment>
+          {
+            vec3 n = normalize(vMN);
+            if (abs(n.y) < 0.6) {
+              float cy = vWPos.y / ${course.toFixed(2)};
+              float ci = floor(cy), fy = fract(cy);
+              float s = abs(n.x) > abs(n.z) ? vWPos.z : vWPos.x;
+              float L = 1.6 + mh(ci) * 1.4;
+              float u = (s + mh(ci + 3.0) * 10.0) / L;
+              float fu = fract(u);
+              float aw = fwidth(u) * 1.5, ay = fwidth(cy) * 1.5;
+              float hj = 1.0 - smoothstep(0.0, 0.03 + ay, min(fy, 1.0 - fy));
+              float vj = 1.0 - smoothstep(0.0, 0.02 + aw, min(fu, 1.0 - fu));
+              float fade = 1.0 - smoothstep(0.15, 0.5, max(aw, ay));
+              diffuseColor.rgb *= 1.0 - ${joint.toFixed(2)} * max(hj, vj) * fade;
+              diffuseColor.rgb *= 0.9 + mh(ci * 7.0 + floor(u)) * 0.18;
+            }
+          }`);
+    };
+    m.customProgramCacheKey = () => 'masonry' + course + joint;
+    return m;
+  },
   rubble() {
     return addMacro(new THREE.MeshStandardMaterial({
       map: tex('limestone', 1.0), normalMap: tex('limestoneN', 1.0),
@@ -146,7 +181,7 @@ export const Mats = {
     return addMacro(new THREE.MeshStandardMaterial({
       map: tex('granite', 1.6), normalMap: tex('rockN', 2.5),
       normalScale: new THREE.Vector2(1.2, 1.2),
-      vertexColors: true, roughness: 0.78, color: new THREE.Color(0xd8b8ac),
+      vertexColors: true, roughness: 0.78, color: new THREE.Color(0xe8cabf),
     }), { scale: 25, amount: 0.15 });
   },
   polishedGranite() {

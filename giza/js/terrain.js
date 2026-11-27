@@ -337,11 +337,11 @@ const TERRAIN_ALBEDO = /* glsl */`
   slopeW = 1.0 - clamp(normalize(vWNrm).y, 0.0, 1.0);
   vec3 g1 = texture2D(tGravel, wp / 3.1).rgb;
   vec3 g2 = texture2D(tGravel, wp * mat2(0.8, 0.6, -0.6, 0.8) / 8.3).rgb;
-  vec3 gravel = mix(g1, g2, 0.4);
+  vec3 gravel = mix(g1, g2, 0.4) * 1.08;
   vec3 s1 = texture2D(tSand, wp / 4.3).rgb;
   vec3 s2 = texture2D(tSand, wp * mat2(0.6, -0.8, 0.8, 0.6) / 13.0).rgb;
   vec3 sand = mix(s1, s2, 0.45);
-  sandW = smoothstep(0.40, 0.66, nz.r * 0.62 + nz2.g * 0.5 - mk.g * 0.5 - mk.b * 0.6);
+  sandW = smoothstep(0.38, 0.72, nz.r * 0.62 + nz2.g * 0.5 - mk.g * 0.5 - mk.b * 0.6);
   sandW = clamp(max(sandW, 0.22 - mk.g * 0.2), 0.0, 1.0);
   vec3 col = mix(gravel, sand, sandW);
   rockW = clamp(max(mk.g * 0.95, smoothstep(0.16, 0.40, slopeW)), 0.0, 1.0);
@@ -361,7 +361,7 @@ const TERRAIN_ALBEDO = /* glsl */`
   field = mix(field, vec3(0.22, 0.16, 0.10), step(0.78, ph));
   field *= mix(0.8, 1.15, texture2D(uNoise, wp / 9.0).a);
   col = mix(col, mix(urban, field, uEra), smoothstep(0.15, 0.6, zoneW));
-  col *= mix(0.9, 1.12, nz.g) * 1.12;
+  col *= mix(0.95, 1.07, nz.g) * 1.12;
   diffuseColor.rgb *= col;
 `;
 
