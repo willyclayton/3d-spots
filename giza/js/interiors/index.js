@@ -173,9 +173,12 @@ function buildProps(id, d, M) {
     lamp(R.X, R.yK + 3.6, 4.3, 0.8, 6);
     lamp(R.X, R.yAf(-60) + 1.25, -60, 0.8, 9); lamp(R.X, R.yAf(-48) + 1.25, -48, 0.8, 9);
     lamp(R.er.u, R.yR + 2.3, -95, 1.0, 12); lamp(R.er.u, R.yR + 2.3, -80, 1.0, 12); lamp(3.5, R.yR + 2.3, -70.6, 0.9, 9);
-    lamp(R.X, R.yD(-88) + 1.25, -88, 0.6, 9); lamp(R.X, R.yD(-50) + 1.25, -50, 0.6, 9); lamp(R.X, R.yD(-20) + 1.25, -20, 0.6, 9);
+    for (let z = R.zB + 4; z < R.zDend - 2; z += 11) lamp(R.X, R.yD(z) + 1.22, z, 0.6, 9);
+    for (let z = R.zP + 4; z < R.zGN - 2; z += 8) lamp(R.X + 0.45, R.yAf(z) + 1.2, z, 0.5, 8);
+    for (let z = R.zR + 6; z < -72; z += 10) lamp(R.er.u, R.yR + 2.3, z, 0.8, 10);
     lamp(1.5, R.yDend + 3.4, 5.5, 1.0, 12);
-    lamp(R.X, 22.75, -25, 0.6, 9); lamp(R.X, 22.75, -12, 0.6, 9);
+    for (let z = -36; z < -4; z += 8) lamp(R.X, 22.75, z, 0.6, 9);
+    lamp(1.0, R.yDend + 3.4, 2.5, 0.8, 10);
   }
   if (id === 'khafre') {
     // sarcophagus sunk into the floor, broken lid beside it

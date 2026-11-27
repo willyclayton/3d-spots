@@ -24,6 +24,11 @@ An explorable model of the Giza plateau:
   the five relieving chambers, all four "air shafts", the 2023 North Face Corridor and the 2017
   Big Void; Khafre's two entrances, Belzoni's chamber and the subsidiary chamber; Menkaure's
   panelled chamber, antechamber, niche chamber and granite burial chamber.
+- **Guided tour**: a narrated walkthrough of everything, about 5 minutes. It flies over the
+  plateau, cuts the pyramids open, and walks you automatically through al-Ma'mun's tunnel, up
+  the Grand Gallery and into the King's Chamber, then visits Khafre, Menkaure, the Sphinx,
+  the temples and tombs, and ends with the monuments as built. Back / Pause / Next; touching
+  the view pauses it.
 - **Cutaway**: slice any pyramid north–south or east–west at any position. The cut faces,
   with their courses and joints, and the bedrock pit below are rebuilt live.
 - **X-ray**: see-through stone with the passages glowing through the ground.
@@ -40,6 +45,7 @@ An explorable model of the Giza plateau:
 
 | Parameter | Example | Effect |
 |---|---|---|
+| `tour` | `?tour=1` | start the guided tour (at stop N with `?tour=N`) |
 | `place` | `?place=sphinx` | open a place |
 | `walk` | `?walk=k-gallery` | start walking at a place |
 | `section` | `?section=khufu,x,7.29` | cutaway: pyramid, plane (`x` = N–S, `z` = E–W), offset in m |

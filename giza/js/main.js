@@ -16,6 +16,7 @@ import { SectionTool } from './section.js';
 import { WalkWorld } from './walkworld.js';
 import { profileRangeAt } from './interiors/build.js';
 import { createUI } from './ui.js';
+import { createTour } from './tour.js';
 
 const params = new URLSearchParams(location.search);
 const coarse = matchMedia('(pointer: coarse)').matches;
@@ -134,7 +135,10 @@ async function init() {
   const torch = new THREE.SpotLight(0xffc98a, 0, 40, 0.55, 0.6, 2);
   torch.position.set(0.15, -0.15, 0); torch.target.position.set(0, -0.2, -2);
   camera.add(torch, torch.target);
-  Object.assign(app, { pool, torch });
+  const fill = new THREE.PointLight(0xffe4bd, 0, 9, 1.4);
+  fill.position.set(0, 0.25, 0.3);
+  camera.add(fill);
+  Object.assign(app, { pool, torch, fill });
 
   // ---- labels
   const labels = new LabelLayer(document.getElementById('labels'), camera, { onSelect: (id) => selectPlace(id) });
@@ -146,6 +150,25 @@ async function init() {
     setMode, setEra, setXray, setSection, setLabels, setTime, selectPlace, flyHome, setVoids, setCity, setTorch,
   });
   app.ui = ui;
+  const presetViews = {
+    hero: [[620, 260, 760], [-170, 20, 280]],
+    default: [[760, 230, 1180], [-230, 25, 330]],
+  };
+  app.tour = createTour(app, {
+    setMode, setEra, setXray, setSection, selectPlace,
+    placeById: (id) => PLACES.find((q) => q.id === id),
+    flyToView: (name) => {
+      const [p, t] = presetViews[name];
+      const tgt = new THREE.Vector3(...t);
+      const pos = new THREE.Vector3(...p).sub(tgt).multiplyScalar(Math.min(1.6, fitScale())).add(tgt);
+      return flyTo(pos, tgt);
+    },
+    walkFrom: (pos, yawDeg) => {
+      pos.y = app.terrain.heightAt(pos.x, pos.z);
+      enterWalkAt({ walk: null, world: [pos.x, pos.y, pos.z], view: { yaw: 0, dist: 0 }, _direct: { pos, yaw: -THREE.MathUtils.degToRad(yawDeg) } });
+    },
+  });
+  walk.onUserMove = () => app.tour.userInterrupt();
 
   // ---- initial view
   const v = params.get('view');
@@ -179,8 +202,9 @@ async function init() {
   setTimeout(() => document.getElementById('loading').classList.add('done'), 150);
   if (params.has('still')) await Promise.race([sphinx.ready, new Promise((r) => setTimeout(r, 90000))]);
   window.__ready = true;
-  ui.maybeShowHelp();
   startLoop();
+  if (params.has('tour')) app.tour.start(parseInt(params.get('tour'), 10) - 1 || 0);
+  else ui.maybeShowWelcome();
 }
 
 // ------------------------------------------------------------------ world --
@@ -275,7 +299,7 @@ function setupLabels() {
   const { labels } = app;
   const hulls = Object.values(app.pyr.info).map(({ P, half, tanA }) => ({ P, half, tanA, H: P.heightNow }));
   for (const sp of app.pyr.small) hulls.push({ P: { cx: sp.sp.cx, cz: sp.sp.cz, baseY: sp.sp.baseY }, half: sp.half, tanA: sp.tanA, H: sp.sp.heightNow });
-  const tmp = new THREE.Vector3();
+  const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
   const occluded = (pos, cam) => {
     const d = pos.distanceTo(cam);
     const n = 40;
@@ -293,18 +317,28 @@ function setupLabels() {
     }
     return false;
   };
+  const ray = new THREE.Raycaster();
+  const dirV = new THREE.Vector3();
+  const insideBlocked = (p, pos, cam) => {
+    if (state.mode !== 'walk') return false;
+    const it = app.interiors[p.pyr];
+    const d = pos.distanceTo(cam);
+    dirV.subVectors(pos, cam).divideScalar(d);
+    ray.set(cam, dirV); ray.far = Math.max(0.1, d - 0.6);
+    return ray.intersectObjects(it.eras[state.era].meshes, false).length > 0;
+  };
   for (const p of PLACES) {
     const el = p.pyr && !p.exterior ? elementAt(p) : null;
     const it = labels.add({
       id: p.id, text: p.name, kind: p.kind, prio: p.prio,
       getPos: (out) => placeWorldPos(p, out),
       maxDist: p.prio === 1 ? 9000 : p.prio === 2 ? 2200 : 700,
-      occlusion: (p.pyr && !p.exterior) ? null : occluded,
+      occlusion: (p.pyr && !p.exterior) ? (pos, cam) => insideBlocked(p, pos, cam) : occluded,
       visible: () => {
         if (p.era && p.era !== state.era) return false;
         if (p.void && !state.showVoids) return false;
         if (p.pyr && !p.exterior) {
-          if (state.mode === 'walk') return app.walk.inside === p.pyr;
+          if (state.mode === 'walk') return app.walk.inside === p.pyr && camera.position.distanceTo(placeWorldPos(p, tmp2)) < 30;
           if (state.xray) return true;
           if (state.section && app.section.target === p.pyr) return p.void ? true : cutExposes(el, app.section);
           return false;
@@ -355,7 +389,8 @@ function setMode(mode, opts = {}) {
 
 function enterWalkAt(p) {
   let pos, yaw = 0;
-  if (p.walk?.local && p.pyr) {
+  if (p._direct) { pos = p._direct.pos.clone(); yaw = p._direct.yaw; }
+  else if (p.walk?.local && p.pyr) {
     const P = PYRAMIDS[p.pyr];
     pos = new THREE.Vector3(P.cx + p.walk.local[0], P.baseY + p.walk.local[1], P.cz + p.walk.local[2]);
     yaw = -THREE.MathUtils.degToRad(p.walk.yaw || 0);
@@ -484,6 +519,7 @@ function setXray(on) {
 
 function setSection(on, opts = {}, moveCamera = true) {
   const { section } = app;
+  let flyP = Promise.resolve();
   if (on) {
     if (state.xray) setXray(false);
     if (state.mode === 'walk') setMode('orbit');
@@ -496,7 +532,9 @@ function setSection(on, opts = {}, moveCamera = true) {
     state.section = true;
     if (moveCamera) {
       const vp = section.viewpoint();
-      flyTo(new THREE.Vector3(...vp.pos), new THREE.Vector3(...vp.target));
+      const tgt = new THREE.Vector3(...vp.target);
+      const pos = new THREE.Vector3(...vp.pos).sub(tgt).multiplyScalar(fitScale()).add(tgt);
+      flyP = flyTo(pos, tgt);
     }
   } else if (state.section) {
     section.setEnabled(false);
@@ -504,6 +542,7 @@ function setSection(on, opts = {}, moveCamera = true) {
   }
   for (const it of Object.values(app.interiors)) it.voidMeshes.forEach((v) => { v.visible = ((state.section && section.target === it.id) || state.xray) && state.showVoids; });
   app.ui.syncSection(state.section);
+  return flyP;
 }
 app.setSection = setSection;
 
@@ -520,13 +559,19 @@ function setTime(h) {
 // ---------------------------------------------------------- camera moves --
 let fly = null;
 function flyTo(pos, target, ms = 1600) {
+  if (fly) fly.done();
   const from = { p: camera.position.clone(), t: controls.target.clone() };
   const dist = from.p.distanceTo(pos);
-  fly = { from, to: { p: pos.clone(), t: target.clone() }, t0: performance.now(), ms: Math.min(2600, ms + dist * 0.4), arc: Math.min(400, dist * 0.18) };
-  if (STILL) { camera.position.copy(pos); controls.target.copy(target); fly = null; controls.update(); }
+  return new Promise((resolve) => {
+    fly = { from, to: { p: pos.clone(), t: target.clone() }, t0: performance.now(), ms: Math.min(2600, ms + dist * 0.4), arc: Math.min(400, dist * 0.18), done: resolve };
+    if (STILL) { camera.position.copy(pos); controls.target.copy(target); fly = null; controls.update(); resolve(); }
+  });
 }
 app.flyTo = flyTo;
-app.cancelFly = () => { fly = null; };
+app.cancelFly = () => { if (fly) { fly.done(); fly = null; } };
+
+// On phones a tall portrait view sees little sideways: back off so the subject fits.
+function fitScale() { return Math.max(1, 0.9 / Math.max(0.2, camera.aspect)); }
 function flyHome() {
   if (state.mode === 'walk') setMode('orbit');
   if (state.section) setSection(false);
@@ -539,10 +584,11 @@ function viewFor(p) {
   const target = anchor.clone();
   if (v.ty) target.y += v.ty;
   const yaw = THREE.MathUtils.degToRad(v.yaw ?? 30), pitch = THREE.MathUtils.degToRad(v.pitch ?? 20);
+  const dist = v.dist * (v.look ? 1 : fitScale());
   const pos = new THREE.Vector3(
-    target.x + Math.sin(yaw) * Math.cos(pitch) * v.dist,
-    target.y + Math.sin(pitch) * v.dist,
-    target.z - Math.cos(yaw) * Math.cos(pitch) * v.dist,
+    target.x + Math.sin(yaw) * Math.cos(pitch) * dist,
+    target.y + Math.sin(pitch) * dist,
+    target.z - Math.cos(yaw) * Math.cos(pitch) * dist,
   );
   if (v.look) target.set(...v.look);
   const gy = app.terrain.heightAt(pos.x, pos.z, false) + 3;
@@ -552,15 +598,16 @@ function viewFor(p) {
 
 function selectPlace(id, opts = {}) {
   const p = PLACES.find((q) => q.id === id);
-  if (!p) return;
+  if (!p) return Promise.resolve();
   state.selected = id;
   app.labels.select(id);
-  app.ui.showInfo(p);
-  if (opts.noMove) return;
+  if (!opts.silent) app.ui.showInfo(p);
+  if (opts.noMove) return Promise.resolve();
+  if (app.tour?.active && !opts.silent) app.tour.stop();
   if (p.era && p.era !== state.era) setEra(p.era);
   if (state.mode === 'walk') {
     if (p.walk || !p.pyr || p.exterior) enterWalkAt(p);
-    return;
+    return Promise.resolve();
   }
   if (p.pyr && !p.exterior) {
     // open the pyramid so the place can be seen
@@ -575,17 +622,16 @@ function selectPlace(id, opts = {}) {
     if (p.void && !state.section) setXray(true);
     else if (!p.void) setSection(true, { target: p.pyr, plane, offset, flip: false }, false);
     const target = placeWorldPos(p);
-    const d = (p.view && p.view.dist) || 30;
+    const d = ((p.view && p.view.dist) || 30) * fitScale();
     const pos = plane === 'x'
       ? new THREE.Vector3(P.cx + offset + d, target.y + d * 0.2, target.z + d * 0.3)
       : new THREE.Vector3(target.x - d * 0.3, target.y + d * 0.2, P.cz + offset + d);
-    if (opts.instant || STILL) { camera.position.copy(pos); controls.target.copy(target); controls.update(); }
-    else flyTo(pos, target);
-    return;
+    if (opts.instant || STILL) { camera.position.copy(pos); controls.target.copy(target); controls.update(); return Promise.resolve(); }
+    return flyTo(pos, target);
   }
   const { pos, target } = viewFor(p);
-  if (opts.instant || STILL) { camera.position.copy(pos); controls.target.copy(target); controls.update(); }
-  else flyTo(pos, target);
+  if (opts.instant || STILL) { camera.position.copy(pos); controls.target.copy(target); controls.update(); return Promise.resolve(); }
+  return flyTo(pos, target);
 }
 
 // ------------------------------------------------------------------- loop --
@@ -602,7 +648,7 @@ function startLoop() {
       camera.position.lerpVectors(fly.from.p, fly.to.p, e);
       camera.position.y += Math.sin(Math.PI * e) * fly.arc;
       controls.target.lerpVectors(fly.from.t, fly.to.t, e);
-      if (t >= 1) fly = null;
+      if (t >= 1) { const f = fly; fly = null; f.done(); }
     }
     let focus, radius;
     if (state.mode === 'walk') {
@@ -619,6 +665,8 @@ function startLoop() {
       focus = controls.target; radius = Math.max(40, dist * 0.85);
     }
     app.sky.fitShadow(focus, radius);
+    app.tour.tick(dt);
+    applyViewOffset();
     updateLights(dt);
     envTimer += dt;
     if (envTimer > 0.25) { envTimer = 0; app.sky.updateEnvironment(); }
@@ -629,6 +677,20 @@ function startLoop() {
     if (STILL && frames >= STILL) { renderer.setAnimationLoop(null); window.__stillDone = true; }
   };
   renderer.setAnimationLoop(loop);
+  app.step = loop;   // one frame on demand (used by automated tests)
+}
+
+// On phones, keep the subject in the part of the screen not covered by the
+// bottom sheet (place details or the tour card).
+let lastOffset = 0;
+function applyViewOffset() {
+  const cover = state.mode === 'orbit' || app.tour?.active ? app.ui.bottomCover() : 0;
+  const k = Math.round(cover * 0.5);
+  if (k === lastOffset) return;
+  lastOffset = k;
+  const w = container.clientWidth, h = container.clientHeight;
+  if (k > 0) camera.setViewOffset(w, h, 0, k, w, h);
+  else camera.clearViewOffset();
 }
 
 // interior lamps, torch and eye adaptation
@@ -640,7 +702,7 @@ function updateLights(dt) {
   adapt += (want - adapt) * Math.min(1, dt * 2.5);
   if (STILL) adapt = want;
   sky.setInterior(adapt * 0.97);
-  renderer.toneMappingExposure = 0.62 + adapt * 0.55;
+  renderer.toneMappingExposure = 0.62 + adapt * 0.75;
   const ref = state.mode === 'walk' ? camera.position : controls.target;
   const lamps = [];
   const showLamps = state.era === 'today' && (inside || state.section);
@@ -658,16 +720,19 @@ function updateLights(dt) {
     const c = lamps[i];
     if (c && c.d < 80) {
       pl.position.set(c.x, c.y, c.z);
-      pl.intensity = c.l.i * (inside ? 9 : 45);
-      pl.distance = c.l.d * (inside ? 1.6 : 2.5);
+      pl.intensity = c.l.i * (inside ? 20 : 45);
+      pl.distance = c.l.d * (inside ? 2.2 : 2.5);
     } else pl.intensity = 0;
   });
   const torchOn = state.mode === 'walk' && (state.torch || (inside && state.era === 'built'));
   torch.intensity = torchOn ? (inside ? 60 : 20) : 0;
+  // soft light around the visitor so no passage is pitch black
+  app.fill.intensity = inside ? (state.era === 'today' ? 5 : 2.5) * adapt : 0;
 }
 
 addEventListener('resize', () => {
   camera.aspect = container.clientWidth / container.clientHeight;
+  lastOffset = -1;
   camera.updateProjectionMatrix();
   renderer.setSize(container.clientWidth, container.clientHeight);
 });

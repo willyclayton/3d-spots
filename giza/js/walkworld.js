@@ -73,6 +73,16 @@ export class WalkWorld {
     return best;
   }
 
+  // when the height is unknown (teleport), stand on the highest real floor
+  highest(x, z) {
+    let best = null;
+    for (const s of this.supports(x, z, 0)) {
+      if (s.ceiling - s.floor < 0.75) continue;
+      if (!best || s.floor > best.floor) best = s;
+    }
+    return best;
+  }
+
   fits(x, z, y) {
     const c = this.best(x, z, y);
     if (!c) return null;
@@ -92,7 +102,7 @@ export class WalkWorld {
       return c ? { x, z, floor: c.floor, ceiling: c.ceiling, inside: c.inside } : null;
     };
     if (dx === 0 && dz === 0) {
-      const c = this.best(feet.x, feet.z, feet.y + 0.5) || this.best(feet.x, feet.z, 1e4);
+      const c = this.best(feet.x, feet.z, feet.y + 0.5) || this.highest(feet.x, feet.z);
       return c ? { x: feet.x, z: feet.z, floor: c.floor, ceiling: c.ceiling, inside: c.inside } : null;
     }
     return tryAt(feet.x + dx, feet.z + dz) || tryAt(feet.x + dx, feet.z) || tryAt(feet.x, feet.z + dz) || tryAt(feet.x, feet.z);
