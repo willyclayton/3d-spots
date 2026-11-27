@@ -9,6 +9,8 @@
 //   footprints: rects of solid structures: only volumes can be entered there.
 //   obstacles:  rects that block walking on the terrain (walls, tombs...).
 //   blockedAt:  optional (x, z) -> bool, for shapes that are not rectangles.
+//   maxDrop:    optional: refuse steps that would drop further than this
+//               (parapets, the edge of a terrace); unlimited by default.
 
 const R = 0.24;          // body radius
 const STEP_UP = 1.0;     // highest step one can climb (the Great Step is 0.9 m)
@@ -21,6 +23,7 @@ export class WalkWorld {
     this.obstacles = [];
     this.footprints = [];
     this.blockedAt = null;
+    this.maxDrop = Infinity;
   }
 
   setVolumes(list) { this.volumes = list.slice(); }
@@ -79,6 +82,7 @@ export class WalkWorld {
   fits(x, z, y) {
     const c = this.best(x, z, y);
     if (!c) return null;
+    if (y - c.floor > this.maxDrop) return null;
     const y2 = Math.max(y, c.floor);
     for (const [ox, oz] of [[R, 0], [-R, 0], [0, R], [0, -R], [R * 0.7, R * 0.7], [-R * 0.7, R * 0.7], [R * 0.7, -R * 0.7], [-R * 0.7, -R * 0.7]]) {
       const s = this.best(x + ox, z + oz, y2);

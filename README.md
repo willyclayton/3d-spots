@@ -78,27 +78,42 @@ The Flavian Amphitheatre in its valley between the Palatine, Caelian and Oppian 
 - **Generated bay by bay** on a four-centred oval (the 3-4-5 construction): 188 × 156 m outside,
   86 × 54 m arena, 80 bays. Every ring is an offset of the façade, so the radial walls follow the
   curve's normals.
-- **The façade**: three arcades framed by Tuscan, Ionic and Corinthian half-columns with their
-  entablatures, the attic with pilasters, windows and the consoles for the awning masts. Arches
-  carry their numbers in the data (I–LXXVI, counter-clockwise from the south entrance).
-- **Inside**: the second and third rings, the ambulatory floors, 80 radial walls, the stepped
-  seating in four tiers, the podium and arena wall, and Domitian's hypogeum (corridors, cells,
-  the basement floor; the 28 Flavian lifts in 90 CE).
-- **Today / 90 CE**: the ruin (the north side standing to full height between Stern's and
-  Valadier's buttresses, the south side down to the inner ring, the marble seats gone, the arena
-  open with the modern platform at the east end) or the complete building with marble seats and a
-  sanded arena floor.
-- **Cutaway** across or along the building, at any position, with solid cut faces; x-ray.
-- **Places and a short tour** of the building and its neighbours (Arch of Constantine, Meta Sudans,
-  the Colossus base, the Temple of Venus and Roma, the Ludus Magnus).
-
-Still to come: walking inside, the surroundings modelled (the neighbouring monuments, the
-modern city, trees), the awning, statues and colour of 90 CE.
+- **The façade**: three arcades framed by Tuscan, Ionic and Corinthian half-columns with bases,
+  capitals, keystones and entablatures, the attic with pilasters, windows and the consoles for
+  the awning masts, and the arch numbers carved over the ground floor (today XXIII–LIV).
+- **The structure inside**: barrel-vaulted ambulatories on three storeys, the second and third
+  rings, annular walls carrying each tier, 80 radial walls, a ring corridor at ground level, the
+  seating as raking vaults (stepped on top, smooth below), 20 staircases rising to vomitoria
+  under their lintels, the podium with its arena wall, gates, balustrade and marble facing, and
+  in 90 CE the emperor's and the magistrates' boxes.
+- **The hypogeum**: the service corridor, the curved lift corridor and the straight corridors
+  with their doorways and cells; 28 lifts, each with guide posts, a cage, a rope over a pulley,
+  a capstan on a timber deck and a trapdoor; the arena floor of sand on planks on joists;
+  tunnels at both ends and a stair down from the north.
+- **The games (90 CE)**: a beast hunt (a lion or a bear winched up by lift, the trapdoors opening,
+  the cage gate sliding up, a venator sidestepping its charges, attendants driving it out) and a
+  gladiator bout (secutor against retiarius with a referee, a thrown net, an appeal granted),
+  with gladiators waiting in the cells below and up to about 25,000 spectators who rise with the
+  action. Also statues in the arches, bronze shields, 240 masts and the velarium, and the
+  colonnade at the top. Settings switch the games, crowd and awning off.
+- **Walk inside**: through any arch, round the corridors, up the stairs and out on to the seats,
+  across the podium, into the arena (90 CE) or on to today's platform, and down into the
+  basement.
+- **Cutaway** across or along the building with solid cut faces drawn per material (travertine
+  blocks, tuff, Roman concrete, marble, timber); x-ray.
+- **Today / 90 CE**: the ruin (the north side standing between Stern's and Valadier's
+  buttresses, the south side down to the inner ring, the seats gone, the basement open) or the
+  complete building.
+- **Guided tour**: 22 stops, much of it on foot: in by arch XLIV, up a staircase to the seats,
+  the games, the lifts in section, down into the hypogeum past the waiting gladiators, and the
+  ruin today.
 
 Accuracy: the overall dimensions are well established; the orientation of the long axis (set to
 a bearing of 106°, `AXIS_BEARING` in `colosseum/js/data/site.js`), the storey heights, the seating
-profile, the hypogeum layout and the positions of the surrounding monuments are approximate. The
-elevation tiles are too coarse for the narrow valley, so its floor is sculpted along the streets.
+profile, the staircase layout, the hypogeum layout and the lift mechanism (after published
+reconstructions), and the positions of the surrounding monuments are approximate. The fights
+are stylised and nobody is hurt. The elevation tiles are too coarse for the narrow valley, so
+its floor is sculpted along the streets. Still to come: the surrounding monuments and the city.
 
 ## Code
 
@@ -128,7 +143,16 @@ giza/textures/             procedural PBR textures
 colosseum/js/main.js       the Colosseum's SpotApp subclass
 colosseum/js/data/         plan, rings, storeys, seating, survival per bay (site.js) and places
 colosseum/js/plan.js       the four-centred oval, its offsets, bays, plan <-> world
-colosseum/js/amphitheatre.js  the bay-by-bay generator (both eras)
+colosseum/js/amphitheatre.js  façade, rings, vaults; assembles the parts below (both eras)
+colosseum/js/geom.js       developed-surface helpers: curved walls, sweeps, radial walls
+colosseum/js/layout.js     annular walls, stairs, vomitoria, gates, seat and vault profiles
+colosseum/js/cavea.js      the seating, its substructures, stairs and the podium
+colosseum/js/hypogeum.js   the basement, the lifts and the arena floor
+colosseum/js/decor.js      statues, shields, masts, velarium, colonnade, arch numbers
+colosseum/js/walkspace.js  the walkable floors, from the same layout
+colosseum/js/figures.js    articulated people and animals
+colosseum/js/games.js      the programme of the games (scheduler and choreography)
+colosseum/js/crowd.js      the spectators (instanced)
 colosseum/js/section.js    clip-plane cutaway with solid cut faces
 colosseum/js/terrain.js    hills from the heightmap, the valley floor and streets sculpted
 tools/                     generators for the terrain and textures (Python + numpy)

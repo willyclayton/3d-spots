@@ -83,6 +83,13 @@ export class Terrain {
     return h;
   }
 
+  // Cut-outs in the ground (world): [{ x, z, along, across, angle }],
+  // angle = direction of `along` (radians from +x towards +z).
+  setHoles(list) {
+    const U = this.uniforms;
+    list.slice(0, 4).forEach((h, i) => { U.uHoles.value[i].set(h.x, h.z, h.along, h.across); U.uHoleAng.value[i] = h.angle; });
+  }
+
   // ---------------------------------------------------------- mesh -------
   build(quality = 'high') {
     const fine = quality === 'low' ? 4.5 : quality === 'medium' ? 3 : 2;
@@ -180,6 +187,8 @@ export class Terrain {
       tCob: { value: TEX.cobble }, tCobN: { value: TEX.cobbleN },
       tTrav: { value: TEX.travertine }, tTravN: { value: TEX.travertineN },
       tAsph: { value: TEX.asphalt },
+      uHoles: { value: Array.from({ length: 4 }, () => new THREE.Vector4(1e6, 1e6, 0, 0)) },
+      uHoleAng: { value: [0, 0, 0, 0] },
     };
     this.uniforms = U;
     m.onBeforeCompile = (sh) => {
@@ -192,6 +201,7 @@ export class Terrain {
           varying vec3 vWPos; varying vec3 vWNrm;
           uniform sampler2D uMaskA, uMaskB, uNoise, tSoil, tSoilN, tGrass, tGrassN, tCob, tCobN, tTrav, tTravN, tAsph;
           uniform vec4 uMaskRect; uniform float uEra;
+          uniform vec4 uHoles[4]; uniform float uHoleAng[4];
           float grassW, roadW, cobW, travW;
           `)
         .replace('#include <map_fragment>', ALBEDO)
@@ -204,6 +214,12 @@ export class Terrain {
 
 const ALBEDO = /* glsl */`
   vec2 wp = vWPos.xz;
+  for (int i = 0; i < 4; i++) {
+    vec2 dd = wp - uHoles[i].xy;
+    float ca = cos(uHoleAng[i]), sa = sin(uHoleAng[i]);
+    vec2 rr = vec2(ca * dd.x + sa * dd.y, -sa * dd.x + ca * dd.y);
+    if (abs(rr.x) < uHoles[i].z && abs(rr.y) < uHoles[i].w) discard;
+  }
   vec2 muv = (wp - uMaskRect.xy) / uMaskRect.zw;
   vec3 ma = vec3(0.0), mb = vec3(0.0);
   if (muv.x > 0.0 && muv.y > 0.0 && muv.x < 1.0 && muv.y < 1.0) { ma = texture2D(uMaskA, muv).rgb; mb = texture2D(uMaskB, muv).rgb; }

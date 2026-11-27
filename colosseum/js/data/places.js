@@ -4,7 +4,7 @@
 // coordinates, y = null meaning "on the ground".
 // Interior places (struct: 'amph') only show in a cutaway, x-ray or on foot.
 // prio: 1 = always shown, 2 = shown when closer, 3 = detail.
-import { toWorld, ovalPoint, bayAlpha } from '../plan.js';
+import { toWorld, ovalPoint, ovalNormal, bayAlpha, dirWorld } from '../plan.js';
 import { AROUND } from './site.js';
 
 // world position of plan point (u, y, v)
@@ -13,10 +13,21 @@ const at = (u, y, v) => { const [x, z] = toWorld(u, v); return [x, y, z]; };
 const bay = (k, d, y) => { const [u, v] = ovalPoint(bayAlpha(k), d); return at(u, y, v); };
 // camera yaw (degrees, 0 = looking north) that looks at the building from bay k's side
 const yawFrom = (k) => { const [u, v] = ovalPoint(bayAlpha(k), 0); const [x, z] = toWorld(u, v); return (Math.atan2(x, -z) * 180) / Math.PI; };
+// where to stand to walk from bay k at depth d, height y, facing in (towards the arena) or out
+const walkAt = (k, d, y, inward = true) => {
+  const al = bayAlpha(k);
+  const [nu, nv] = ovalNormal(al);
+  const [dx, dz] = dirWorld(inward ? -nu : nu, inward ? -nv : nv);
+  return { local: bay(k, d, y), yaw: (-Math.atan2(-dx, -dz) * 180) / Math.PI };
+};
+// where to stand at plan (u, v), height y, facing along plan direction (du, dv)
+const walkPlan = (u, v, y, du, dv) => { const [dx, dz] = dirWorld(du, dv); return { local: at(u, y, v), yaw: (-Math.atan2(-dx, -dz) * 180) / Math.PI }; };
 
 export const GROUPS = [
   { id: 'amph', name: 'The amphitheatre' },
-  { id: 'inside', name: 'Inside' },
+  { id: 'inside', name: 'Inside the building' },
+  { id: 'below', name: 'Under the arena' },
+  { id: 'games', name: 'The games (90 CE)' },
   { id: 'around', name: 'Around the valley' },
 ];
 
@@ -90,9 +101,82 @@ export const PLACES = [
   },
   {
     id: 'ambulatory', name: 'The outer corridors', group: 'inside', kind: 'chamber', prio: 2, struct: 'amph',
-    local: bay(22, 4.7, 4), view: { dist: 40 },
-    desc: 'Two vaulted corridors ran round the building on each storey. From them, stairs climbed to the gangways (vomitoria) that opened on to the seats, so that the whole crowd could find its place, and leave, within minutes.',
+    local: bay(22, 4.7, 4), view: { dist: 40 }, walk: walkAt(23, 4.7, 0),
+    desc: 'Two barrel-vaulted corridors ran round the building on each storey, between the rings of travertine piers. From them, stairs climbed to the gangways (vomitoria) that opened on to the seats, so that the whole crowd could find its place, and leave, within minutes.',
     section: { plane: 'x', offset: -10 },
+  },
+  {
+    id: 'stairs', name: 'Staircase to the seats', group: 'inside', kind: 'passage', prio: 2, struct: 'amph',
+    local: bay(22, 27, 6.5), view: { dist: 36 }, walk: walkAt(22, 14.8, 0),
+    desc: 'Staircases rose between the radial walls, under the sloping vaults that carry the seats. This one climbs 38 steps from the second ambulatory to the walkway in front of the second tier, coming out through a vomitorium. There was one in every fourth bay at this level, and more above.',
+    section: { plane: 'x', offset: -3.2 },
+  },
+  {
+    id: 'vomitorium', name: 'A vomitorium', group: 'inside', kind: 'passage', prio: 3,
+    world: bay(22, 35.5, 14), view: { dist: 26, yaw: yawFrom(62), pitch: 35 }, walk: walkAt(22, 37.7, 11.4),
+    desc: 'The openings through which the crowd poured out on to the seats, and back out again at the end: “vomitoria”, because they spewed people out. A lintel spans the mouth, and the seats above are cut back over the end of the stair.',
+  },
+  {
+    id: 'east-gate', name: 'Eastern gate (Porta Libitinaria?)', group: 'amph', kind: 'temple', prio: 3,
+    world: bay(0, 50.5, 2), view: { dist: 30, yaw: yawFrom(40), pitch: 12 }, walk: walkAt(0, 46, 0),
+    desc: 'The two gates on the long axis led straight from the outside into the arena. By tradition the eastern one was the Porta Libitinaria, named after the goddess of funerals, through which the dead were carried out; the eastern tunnel under it led towards the gladiators’ school.',
+  },
+  {
+    id: 'west-gate', name: 'Western gate (Porta Triumphalis?)', group: 'amph', kind: 'temple', prio: 3,
+    world: bay(40, 50.5, 2), view: { dist: 30, yaw: yawFrom(0), pitch: 12 }, walk: walkAt(40, 46, 0),
+    desc: 'Through the western gate, by tradition the Porta Triumphalis, the opening procession (pompa) entered the arena: the magistrate giving the games, musicians, and the gladiators in pairs.',
+  },
+  {
+    id: 'hyp-stair', name: 'Stair down to the hypogeum', group: 'below', kind: 'passage', prio: 3, struct: 'amph',
+    local: bay(20, 36, -2), view: { dist: 30 }, walk: walkAt(20, 26.5, 0),
+    desc: 'A stair from the substructures on the north side down to the service corridor round the edge of the basement. Visitors today go down to the hypogeum in much the same place.',
+    section: { plane: 'z', offset: -44 },
+  },
+  {
+    id: 'lifts', name: 'The lifts', group: 'below', kind: 'chamber', prio: 2, struct: 'hypogeum', era: 'built',
+    local: bay(20, 56.95, -3), view: { dist: 28 }, walk: walkPlan(6, -25.2, -6.2, -1, 0),
+    desc: 'Along the curved corridor stood 28 lifts. A cage was hauled up its shaft by a rope wound on a capstan, until it stood level with the arena floor; the trapdoor above swung open and the cage’s gate slid up, and the animal came out on to the sand as if from nowhere. A later rebuilding had about 60 smaller lifts.',
+    facts: [['Lifts', '28 (Flavian), about 60 (3rd century)'], ['Depth', 'about 6 m']],
+    section: { plane: 'z', offset: -18 },
+  },
+  {
+    id: 'capstans', name: 'Capstans', group: 'below', kind: 'chamber', prio: 3, struct: 'hypogeum', era: 'built',
+    local: bay(21.2, 56.95, -2), view: { dist: 22 },
+    desc: 'Each lift was worked from a timber deck at the upper level of the basement: men pushing on the bars of a capstan wound the rope that raised the cage. Reconstructions suggest four to eight men per capstan for a heavy animal.',
+    section: { plane: 'z', offset: -17 },
+  },
+  {
+    id: 'cells', name: 'Where the gladiators waited', group: 'below', kind: 'chamber', prio: 2, struct: 'hypogeum',
+    local: at(16, -4.5, -4.5), view: { dist: 26 }, walk: walkPlan(5, -4.5, -6.2, 1, 0),
+    desc: 'The straight corridors either side of the central one were divided into small rooms and cages. Gladiators waited here for their turn, with their weapons and attendants, and animals were kept in cages until they were moved to the lifts.',
+    section: { plane: 'z', offset: -2.6 },
+  },
+  {
+    id: 'ludus-tunnel', name: 'Tunnel to the gladiators’ school', group: 'below', kind: 'passage', prio: 3, struct: 'hypogeum',
+    local: bay(0, 44, -5), view: { dist: 26 },
+    desc: 'At the eastern end the basement continued in a tunnel under the seating and out beyond the building, thought to have linked it to the Ludus Magnus, the gladiators’ barracks and training school next door.',
+    section: { plane: 'z', offset: 0.5 },
+  },
+  {
+    id: 'trapdoors', name: 'Trapdoors', group: 'games', kind: 'tomb', prio: 3, era: 'built',
+    world: bay(20, 56.95, 0.5), view: { dist: 30, yaw: yawFrom(60), pitch: 40 },
+    desc: 'The arena floor was of planks covered with sand, laid on joists over the basement. Over each lift a trapdoor opened to let the cage up, and scenery, trees and hills even, could be raised the same way.',
+  },
+  {
+    id: 'games', name: 'The games', group: 'games', kind: 'temple', prio: 1, era: 'built',
+    world: at(0, 3, 0), view: { dist: 60, yaw: yawFrom(25), pitch: 28 },
+    desc: 'A day at the games followed a fixed order: animal hunts (venationes) in the morning, executions and lighter shows at midday, and gladiators in the afternoon. Here a lion or a bear comes up through the floor to face a venator, then a secutor fights a retiarius under the eye of a referee. Most bouts did not end in death: a beaten gladiator could appeal, and the editor of the games, with the crowd, decided whether to grant him missio.',
+    facts: [['Venatio', 'animal hunts, mornings'], ['Munera', 'gladiator bouts, afternoons'], ['Pairs', 'secutor against retiarius, murmillo against thraex …']],
+  },
+  {
+    id: 'velarium', name: 'The awning (velarium)', group: 'games', kind: 'temple', prio: 3, era: 'built',
+    world: bay(10, 12, 49), view: { dist: 120, yaw: yawFrom(10), pitch: 25 },
+    desc: 'A vast linen awning shaded the spectators. It hung from 240 masts set on the consoles of the attic and was rigged, sources say, by sailors from the fleet at Misenum. How exactly it worked is still argued over.',
+  },
+  {
+    id: 'statues', name: 'Statues in the arches', group: 'games', kind: 'temple', prio: 3, era: 'built',
+    world: bay(30, -1, 18), view: { dist: 70, yaw: yawFrom(30), pitch: 10 },
+    desc: 'Coins showing the building suggest that statues stood in the arches of the second and third storeys, and that bronze shields decorated the attic. None survive.',
   },
   {
     id: 'vaults', name: 'Raking vaults and radial walls', group: 'inside', kind: 'chamber', prio: 3, struct: 'amph',

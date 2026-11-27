@@ -36,6 +36,9 @@ export function createTour(app, stops) {
 
   const tour = {
     get active() { return active; },
+    get stops() { return stops; },
+    get index() { return i; },
+    get waiting() { return waiting; },
     start(at = 0) {
       active = true;
       document.body.classList.add('touring');

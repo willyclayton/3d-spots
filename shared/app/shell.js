@@ -152,6 +152,8 @@ export class SpotApp {
   lamps(inside) { return []; }                                     // eslint-disable-line no-unused-vars
   // are interiors electrically lit (otherwise the torch comes on inside)?
   interiorLit() { return true; }
+  // how enclosed an interior is (0 open to the sky .. 1 dark inside): eye adaptation
+  interiorDepth(inside) { return 1; }                              // eslint-disable-line no-unused-vars
   labelVisible(p) { return true; }                                 // eslint-disable-line no-unused-vars
   labelClass(p) { return ''; }                                     // eslint-disable-line no-unused-vars
   onFrame(dt) {}                                                   // eslint-disable-line no-unused-vars
@@ -855,7 +857,7 @@ export class SpotApp {
   updateLights(dt) {
     const { pool, walk, torch, sky, state, camera, controls, renderer } = this;
     const inside = state.mode === 'walk' && walk.inside;
-    const want = inside ? 1 : 0;
+    const want = inside ? this.interiorDepth(inside) : 0;
     this.adapt = this.adapt ?? 0;
     this.adapt += (want - this.adapt) * Math.min(1, dt * 2.5);
     if (this.STILL) this.adapt = want;

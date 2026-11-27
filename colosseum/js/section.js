@@ -40,6 +40,7 @@ export class SectionTool {
     const c = (this.offset ?? this.defaultOffset(this.target, this.plane)) * (this.flip ? -1 : 1);
     this.clip.set(a.clone().negate(), c);
     CUT.uCutN.value.copy(a);
+    CUT.uCutT.value.set(-a.z, 0, a.x);
   }
 
   materials() {

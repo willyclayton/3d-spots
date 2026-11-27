@@ -137,6 +137,9 @@
   </label>
   <p class="hint">Changing quality reloads the scene.</p>
   <label class="row"><span>Date</span><input type="date" id="dateInput"></label>
+  <label class="row check"><input type="checkbox" data-toggle="games" checked> <span>Games in the arena (90 CE)</span></label>
+  <label class="row check"><input type="checkbox" data-toggle="crowd" checked> <span>Spectators (90 CE)</span></label>
+  <label class="row check"><input type="checkbox" data-toggle="awning" checked> <span>Awning (velarium, 90 CE)</span></label>
   <button class="chip" id="nowBtn">Sun at the current time in Rome</button>
 </div>
 
@@ -179,7 +182,7 @@
 <div id="welcome" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
   <div class="modal-card welcome-card">
     <h2 id="welcomeTitle">Welcome to the Colosseum</h2>
-    <p>Fly round the amphitheatre, cut it open and look down into the arena’s basement.</p>
+    <p>Walk in through the arches, climb to the seats, go down into the basement, or switch to 90 CE to watch the games.</p>
     <div class="welcome-actions">
       <button class="big primary" id="welcomeTour">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 14.5v-9l7 4.5-7 4.5z"/></svg>

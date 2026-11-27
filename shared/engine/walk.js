@@ -156,6 +156,8 @@ export class WalkController {
         // unstick: if we stop making progress, hop to the waypoint
         if (d < a.best - 0.02) { a.best = d; a.stall = 0; } else a.stall += dt;
         if (a.stall > 1.2) {
+          this.unsticks = (this.unsticks || 0) + 1;      // (counted for tests)
+          this.lastStuck = [this.feet.x, this.feet.y, this.feet.z];
           const r = this.world.resolve({ x: t.x, y: this.feet.y, z: t.z }, 0, 0);
           this.feet.x = t.x; this.feet.z = t.z; if (r) this.feet.y = r.floor;
           a.stall = 0;

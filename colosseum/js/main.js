@@ -10,6 +10,9 @@ import { buildAmphitheatre } from './amphitheatre.js';
 import { SectionTool } from './section.js';
 import { toPlan, ringCoords, toWorld, dirWorld } from './plan.js';
 import { colosseumTour } from './tour.js';
+import { buildWalkVolumes } from './walkspace.js';
+import { Games } from './games.js';
+import { buildCrowd } from './crowd.js';
 
 const SHORT = {
   colosseum: 'Colosseum', 'arch-constantine': 'Arch of Constantine', 'arch-lii': 'Arch LII',
@@ -39,6 +42,7 @@ const CONFIG = {
   section: { target: 'amph', plane: 'x', labels: { x: 'Move cut  W ↔ E', z: 'Move cut  N ↔ S' } },
   eras: { today: { short: 'Today', long: 'Today' }, built: { short: '90 CE', long: 'As built, c. 90 CE' } },
   walkFallback: [0, -150],
+  toggles: { games: true, awning: true, crowd: true },
 };
 
 class Colosseum extends SpotApp {
@@ -66,30 +70,54 @@ class Colosseum extends SpotApp {
     built.group.visible = false;
     scene.add(today.group, built.group);
 
-    Object.assign(this, { terrain, ground, skirt, amph: { today, built } });
+    // the stairwell down to the basement is open to the sky
+    terrain.setHoles(today.hyp.terrainHoles.map((h) => {
+      const [x, z] = toWorld(h.u, h.v), [dx, dz] = dirWorld(...h.dir);
+      return { x, z, along: h.along, across: h.across, angle: Math.atan2(dz, dx) };
+    }));
+
+    progress(0.82, 'Calling the gladiators'); await this.nextFrame();
+    const crowd = buildCrowd(quality);
+    built.group.add(crowd.mesh);
+    const games = new Games(built);
+
+    Object.assign(this, { terrain, ground, skirt, amph: { today, built }, crowd, games });
     this.section = new SectionTool({ groups: [today.group, built.group] });
-    progress(0.9, 'Opening the gates'); await this.nextFrame();
+    progress(0.92, 'Opening the gates'); await this.nextFrame();
   }
 
   // ------------------------------------------------------------ walking --
-  configureWorld(world) {
-    // the building is solid for now (walking inside comes with its floors)
+  // Inside the building the floors are the walkable volumes (walkspace.js);
+  // the ground there belongs to them, and no one steps off a ledge.
+  configureWorld(world, era) {
+    world.setVolumes(buildWalkVolumes(this.amph[era].ctx));
     world.blockedAt = (x, z) => {
       const [u, v] = toPlan(x, z);
-      const d = ringCoords(u, v).d;
-      return d > -0.8 && d < PLAN.cavea + 0.5;
+      return ringCoords(u, v).d > -0.3;
     };
+    world.maxDrop = 1.2;
   }
 
   walkDefault() {
     // on the piazza north-west of the building, looking at the façade
     const [x, z] = toWorld(-70, -95);
     const pos = new THREE.Vector3(x, this.terrain.heightAt(x, z), z);
-    return { pos, yaw: Math.atan2(x, z), hint: 'Walk round the outside; inside comes later' };
+    return { pos, yaw: Math.atan2(x, z), hint: 'Walk in through any arch; stairs climb to the seats' };
   }
 
   structFrame() { return { cx: 0, baseY: 0, cz: 0 }; }
-  structName() { return 'Colosseum'; }
+  structName(id) { return id === 'hypogeum' ? 'hypogeum' : 'Colosseum'; }
+  // the arcades are open to the air; the basement is dark under the arena floor in 90 CE
+  interiorDepth(inside) { return inside === 'hypogeum' && this.state.era === 'built' ? 0.85 : 0; }
+
+  // lamps along the basement corridors, when walking there or with the cut open
+  lamps(inside) {
+    if (!(inside === 'hypogeum' || this.state.section)) return [];
+    return this.amph[this.state.era].hyp.lamps.map((l) => {
+      const [x, z] = toWorld(l.p[0], l.p[2]);
+      return { x, y: l.p[1], z, l };
+    });
+  }
 
   // the masonry, as a solid ring, for label occlusion and the orbit camera
   solidAt(pt) {
@@ -140,6 +168,37 @@ class Colosseum extends SpotApp {
     this.amph.built.group.visible = !today;
     this.terrain.uniforms.uEra.value = today ? 0 : 1;
   }
+
+  applyToggle(name, on) {
+    if (name === 'awning') this.amph.built.group.traverse((o) => { if (o.userData.toggle === 'awning') o.visible = on; });
+    if (name === 'crowd') this.crowd.mesh.visible = on;
+    if (name === 'games') this.games.group.visible = on;
+  }
+
+  // the games run while 90 CE is on screen and the camera is near enough to see them
+  onFrame(dt) {
+    const { state } = this;
+    if (state.era !== 'built' || !state.toggles.games) { this.crowd.uniforms.uExcite.value = 0; return; }
+    const near = this.camera.position.length() < 700;
+    if (!near) return;
+    this.games.update(dt);
+    this.crowd.uniforms.uTime.value += dt;
+    this.crowd.uniforms.uExcite.value = this.games.excite;
+    // during the tour's arena stops, the camera follows the action
+    if (this.follow && state.mode === 'orbit' && this.tour.active && !this.fly) {
+      const c = this.games.actionCentre();
+      if (c) {
+        const [x, z] = toWorld(c.x, c.y);
+        const t = this.controls.target, k = Math.min(1, dt * 1.5);
+        const dx = (x - t.x) * k, dz = (z - t.z) * k, dy = (1.0 - t.y) * k;
+        t.x += dx; t.y += dy; t.z += dz;
+        this.camera.position.x += dx; this.camera.position.y += dy; this.camera.position.z += dz;
+      }
+    }
+  }
+
+  // the tour asks the camera to follow the games (or stop)
+  followGames(on) { this.follow = on; }
 
   // x-ray: the masonry turns see-through
   applyXray(on) {
