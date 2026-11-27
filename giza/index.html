@@ -56,7 +56,10 @@
   <div class="kicker" id="infoKicker"></div>
   <h2 id="infoTitle"></h2>
   <p id="infoDesc"></p>
-  <dl id="infoFacts" class="facts"></dl>
+  <div class="info-more">
+    <p id="infoMore"></p>
+    <dl id="infoFacts" class="facts"></dl>
+  </div>
   <div class="actions" id="infoActions"></div>
 </aside>
 
@@ -88,13 +91,15 @@
   <div class="seg" id="modeSeg" role="radiogroup" aria-label="Navigation mode">
     <button data-v="orbit" class="on" role="radio" aria-checked="true" title="Orbit and fly around (O)">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4C6 4 2 7.6 2 12s4 8 10 8 10-3.6 10-8-4-8-10-8zm0 2c4.6 0 8 2.7 8 6s-3.4 6-8 6-8-2.7-8-6 3.4-6 8-6zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg><span>Explore</span></button>
+    <button data-v="fly" role="radio" aria-checked="false" title="Fly freely over the whole site (G)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 2.5 2.5 10l7 2.6L12 20l3.4-6.3 6.1-11.2zm-11 9.3 7.2-5.6-4.9 7.5-.7 2.5-1.6-4.4z"/></svg><span>Fly</span></button>
     <button data-v="walk" role="radio" aria-checked="false" title="Walk on foot (V)">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.3 7.3 0 0 0 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg><span>Walk</span></button>
   </div>
   <span class="div" aria-hidden="true"></span>
   <button class="tool" id="secBtn" aria-pressed="false" title="Cut a pyramid open (C)">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 1 21h22L12 2zm0 4.2L19.5 19H12V6.2z"/></svg><span>Cutaway</span></button>
-  <button class="tool" id="xrayBtn" aria-pressed="false" title="See through the stone (X)">
+  <button class="tool desk-only" id="xrayBtn" aria-pressed="false" title="See through the stone (X)">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 1 21h22L12 2zm0 3.8L20 19H4l8-13.2zM11 11h2v6h-2z" /></svg><span>X-ray</span></button>
   <span class="div" aria-hidden="true"></span>
   <div class="seg" id="eraSeg" role="radiogroup" aria-label="Era">
@@ -125,6 +130,7 @@
       <span class="sun-m"><input id="timeSlider2" type="range" min="6" max="18" step="0.05" value="15.5" aria-label="Time of day"><output id="timeOut2">15:30</output></span>
     </label>
     <label class="row check"><input type="checkbox" id="labelsChk" checked> <span>Show labels</span></label>
+    <label class="row check"><input type="checkbox" id="xrayChk"> <span>X-ray: see through the stone</span></label>
     <button class="chip" id="helpBtn2">How to navigate</button>
     <hr>
   </div>
@@ -142,10 +148,18 @@
   <div class="rose"><span class="n">N</span><span class="e">E</span><span class="s">S</span><span class="w">W</span><i></i></div>
 </div>
 
+<button id="homeBtn" class="round-btn" title="Whole site (Home)" aria-label="Fly back to the whole site">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3L12 3z"/></svg>
+</button>
+
 <div id="walkHud" class="hidden">
   <div class="crosshair" aria-hidden="true"></div>
   <div class="walk-hint" id="walkHint"></div>
   <div class="joystick" id="joystick" aria-hidden="true"><div class="knob"></div></div>
+  <div class="climb" aria-label="Altitude">
+    <button id="flyUp" aria-label="Climb">▲</button>
+    <button id="flyDown" aria-label="Descend">▼</button>
+  </div>
   <div class="where" id="whereTag"></div>
 </div>
 
@@ -169,15 +183,15 @@
 <div id="welcome" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
   <div class="modal-card welcome-card">
     <h2 id="welcomeTitle">Welcome to Giza</h2>
-    <p>Fly over the plateau, cut the pyramids open, and walk through their passages, as they are today or as they were built 4,500 years ago.</p>
+    <p>Fly over the plateau, cut the pyramids open and walk their passages.</p>
     <div class="welcome-actions">
       <button class="big primary" id="welcomeTour">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 14.5v-9l7 4.5-7 4.5z"/></svg>
-        <span><b>Take the guided tour</b><small>About 5 minutes · covers everything</small></span>
+        <span><b>Guided tour</b><small>5 minutes, everything</small></span>
       </button>
       <button class="big" id="welcomeExplore">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4C6 4 2 7.6 2 12s4 8 10 8 10-3.6 10-8-4-8-10-8zm0 2c4.6 0 8 2.7 8 6s-3.4 6-8 6-8-2.7-8-6 3.4-6 8-6zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
-        <span><b>Explore on my own</b><small>Tap labels or open Places</small></span>
+        <span><b>Explore</b><small>On your own</small></span>
       </button>
     </div>
     <button class="linkish" id="welcomeHelp">How to navigate</button>
@@ -190,45 +204,36 @@
     <h2 id="helpTitle">Exploring Giza</h2>
     <div class="help-grid">
       <section>
-        <h4>Guided tour</h4>
+        <h4>Explore</h4>
         <ul>
-          <li>Press <b>Tour</b> for a narrated trip through everything: it flies, cuts the pyramids open and walks you inside</li>
-          <li><b>Next</b> / <b>Back</b> to skip, <b>Pause</b> to look around; touching the view pauses too</li>
+          <li><b>Drag</b> to turn · <b>right-drag</b> or <b>two fingers</b> to pan</li>
+          <li><b>Scroll</b> or <b>pinch</b> to zoom · <b>W A S D</b> to pan</li>
+          <li><b>Double-click</b> or <b>double-tap</b> to fly to a spot</li>
+          <li>Tap a <b>label</b> or open <b>Places</b></li>
         </ul>
       </section>
       <section>
-        <h4>Explore mode</h4>
+        <h4>Fly</h4>
         <ul>
-          <li><b>Drag</b> to orbit · <b>right-drag</b> or <b>two fingers</b> to pan</li>
-          <li><b>Scroll</b> or <b>pinch</b> to zoom</li>
-          <li>Click a <b>label</b> or a place in the list to fly there</li>
+          <li><b>W A S D</b> to fly, <b>Q / E</b> down and up, <b>Shift</b> faster</li>
+          <li><b>Drag</b> to look · <b>scroll</b> to glide</li>
+          <li>Touch: joystick, drag to look, <b>▲ ▼</b> to climb</li>
         </ul>
       </section>
       <section>
-        <h4>Walk mode</h4>
+        <h4>Walk</h4>
         <ul>
-          <li><b>W A S D</b> or arrows to move, <b>Shift</b> to run</li>
-          <li><b>Click</b> the view to look with the mouse, <b>Esc</b> to release</li>
-          <li>On touch: joystick to move, drag to look</li>
-          <li>Pick a chamber in <b>Places</b> to jump inside</li>
-        </ul>
-      </section>
-      <section>
-        <h4>Tools</h4>
-        <ul>
-          <li><b>Cutaway</b> slices a pyramid and the bedrock open</li>
-          <li><b>X-ray</b> makes the stone transparent</li>
-          <li><b>Today / 2560 BCE</b> swaps the ruins for the finished monuments</li>
-          <li>The <b>sun</b> follows its real path over Giza</li>
+          <li><b>W A S D</b> to walk, <b>Shift</b> to run</li>
+          <li><b>Click</b> to look with the mouse, <b>Esc</b> to release</li>
+          <li>Touch: joystick, drag to look</li>
         </ul>
       </section>
       <section>
         <h4>Keys</h4>
         <ul class="keys">
-          <li><kbd>V</kbd> walk · <kbd>O</kbd> explore</li>
-          <li><kbd>C</kbd> cutaway · <kbd>X</kbd> x-ray</li>
-          <li><kbd>E</kbd> era · <kbd>L</kbd> labels · <kbd>F</kbd> torch</li>
-          <li><kbd>T</kbd> tour · <kbd>H</kbd> help</li>
+          <li><kbd>O</kbd> explore · <kbd>G</kbd> fly · <kbd>V</kbd> walk</li>
+          <li><kbd>C</kbd> cutaway · <kbd>X</kbd> x-ray · <kbd>B</kbd> era</li>
+          <li><kbd>T</kbd> tour · <kbd>L</kbd> labels · <kbd>H</kbd> help</li>
         </ul>
       </section>
     </div>

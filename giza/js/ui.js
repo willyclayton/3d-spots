@@ -51,7 +51,9 @@ export function createUI(app, act) {
     $('placesBtn').setAttribute('aria-expanded', String(o));
     if (o) $('info').classList.add('hidden');
   };
-  try { if (localStorage.getItem('giza-places') === '0') document.body.classList.add('places-collapsed'); } catch (e) { /* ignore */ }
+  let placesPref = null;
+  try { placesPref = localStorage.getItem('giza-places'); } catch (e) { /* ignore */ }
+  if (placesPref !== '1') document.body.classList.add('places-collapsed');
   if (new URLSearchParams(location.search).has('noplaces')) document.body.classList.add('places-collapsed');
   if (new URLSearchParams(location.search).has('clean')) document.body.classList.add('clean');
   $('placesBtn').addEventListener('click', () => togglePlaces());
@@ -59,12 +61,22 @@ export function createUI(app, act) {
 
   // ------------------------------------------------------------ info ---
   const groupName = Object.fromEntries(GROUPS.map((g) => [g.id, g.name]));
+  // first sentence (or two short ones) as the summary; the rest behind "More"
+  const summary = (t) => {
+    const parts = t.match(/[^.!?]+[.!?]+(\s|$)/g) || [t];
+    let out = parts[0];
+    if (out.length < 70 && parts[1]) out += parts[1];
+    return out.trim();
+  };
   function showInfo(p) {
     for (const { b } of items.values()) b.classList.remove('sel');
     items.get(p.id)?.b.classList.add('sel');
     $('infoKicker').textContent = groupName[p.group] || '';
     $('infoTitle').textContent = p.name;
-    $('infoDesc').textContent = p.desc;
+    const short = summary(p.desc);
+    const rest = p.desc.slice(short.length).trim();
+    $('infoDesc').textContent = short;
+    $('infoMore').textContent = rest;
     const dl = $('infoFacts');
     dl.innerHTML = '';
     for (const [k, v] of p.facts || []) {
@@ -74,30 +86,23 @@ export function createUI(app, act) {
     }
     const acts = $('infoActions');
     acts.innerHTML = '';
-    const btn = (label, fn, primary) => {
-      const b = document.createElement('button'); b.textContent = label; if (primary) b.className = 'primary';
+    const btn = (label, fn, cls = '') => {
+      const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls;
       b.addEventListener('click', fn); acts.appendChild(b);
+      return b;
     };
     const interior = p.pyr && !p.exterior;
-    if (interior) btn('Show in cutaway', () => { if (state.mode === 'walk') act.setMode('orbit'); act.selectPlace(p.id); }, true);
-    else btn('Fly here', () => { if (state.mode === 'walk') act.setMode('orbit'); act.selectPlace(p.id); }, true);
-    if (p.walk || !interior) btn('Walk here', () => app.enterWalkAt(p));
-    btn('Copy link', () => {
+    const hasMore = !!(rest || (p.facts && p.facts.length));
+    if (interior && (state.mode !== 'orbit' || (!state.section && !state.xray))) btn('Cutaway', () => { act.setMode('orbit'); act.selectPlace(p.id); }, 'primary');
+    if (p.walk || !interior) btn(interior ? 'Walk inside' : 'Walk here', () => app.enterWalkAt(p), interior ? '' : 'primary');
+    if (hasMore) { const mb = btn('More', () => { mb.textContent = info.classList.toggle('expanded') ? 'Less' : 'More'; }, 'ghost'); }
+    btn('Share', () => {
       const u = new URL(location.href); u.search = ''; u.searchParams.set('place', p.id);
-      navigator.clipboard?.writeText(u.toString()).then(() => toast('Link copied'), () => toast(u.toString()));
-    });
-    // on phones show a short version first, with a More toggle
+      if (navigator.share && coarse) navigator.share({ title: p.name, url: u.toString() }).catch(() => {});
+      else navigator.clipboard?.writeText(u.toString()).then(() => toast('Link copied'), () => toast(u.toString()));
+    }, 'ghost');
     const info = $('info');
-    info.classList.toggle('compact', mobile());
-    let mt = info.querySelector('.more-toggle');
-    if (!mt) {
-      mt = document.createElement('button');
-      mt.className = 'more-toggle linkish';
-      mt.style.margin = '0 0 10px';
-      mt.addEventListener('click', () => { const c = info.classList.toggle('compact'); mt.textContent = c ? 'More' : 'Less'; });
-      info.insertBefore(mt, $('infoActions'));
-    }
-    mt.textContent = 'More';
+    info.classList.remove('expanded');
     info.classList.remove('hidden');
     if (innerWidth <= 860) togglePlaces(false);
     try { const u = new URL(location.href); u.searchParams.set('place', p.id); history.replaceState(null, '', u); } catch (e) { /* file:// */ }
@@ -126,12 +131,13 @@ export function createUI(app, act) {
   $('helpBtn').addEventListener('click', () => showHelp(true));
   $('helpBtn2').addEventListener('click', () => { closeMore(); showHelp(true); });
   $('labelsChk').addEventListener('change', (e) => act.setLabels(e.target.checked));
+  $('xrayChk').addEventListener('change', (e) => { closeMore(); act.setXray(e.target.checked); });
   $('tourBtn').addEventListener('click', () => { closeMore(); app.tour.active ? app.tour.stop() : app.tour.start(); });
   $('eraBtn').addEventListener('click', () => act.setEra(state.era === 'today' ? 'built' : 'today'));
   // welcome screen
   const closeWelcome = () => $('welcome').classList.add('hidden');
   $('welcomeTour').addEventListener('click', () => { closeWelcome(); app.tour.start(); });
-  $('welcomeExplore').addEventListener('click', () => { closeWelcome(); toast('Tip: press Tour any time for a guided walkthrough'); });
+  $('welcomeExplore').addEventListener('click', () => { closeWelcome(); });
   $('welcomeHelp').addEventListener('click', () => { closeWelcome(); showHelp(true); });
   function closeMore() { $('settings').classList.add('hidden'); press('settingsBtn', false); }
   $('helpClose').addEventListener('click', () => showHelp(false));
@@ -209,6 +215,8 @@ export function createUI(app, act) {
     toast(h < parseFloat(timeSlider.min) || h > parseFloat(timeSlider.max) ? 'It is night in Giza — showing twilight' : 'Sun set to the current time in Giza');
   });
 
+  $('homeBtn').addEventListener('click', () => { app.tour?.active && app.tour.stop(); act.flyHome(); });
+
   // ---------------------------------------------------------- compass ---
   const rose = document.querySelector('#compass .rose');
   const fwd = new app.camera.position.constructor();
@@ -228,6 +236,10 @@ export function createUI(app, act) {
 
   // ---------------------------------------------------------- walk HUD ---
   function setWalkHint(locked) {
+    if (state.mode === 'fly') {
+      $('walkHint').textContent = coarse ? 'Joystick to fly · drag to look · ▲▼ climb' : 'W A S D fly · Q / E down, up · drag to look · Shift faster';
+      return;
+    }
     $('walkHint').textContent = coarse
       ? 'Joystick to move · drag to look · tap Explore to leave'
       : locked ? 'W A S D move · Shift run · F torch · Esc releases the mouse'
@@ -239,26 +251,34 @@ export function createUI(app, act) {
     clearTimeout(hintT); hintT = setTimeout(() => h.classList.add('faded'), 6000);
   }
   let whereLast = null;
-  function setWhere(s) { if (s !== whereLast) { $('whereTag').textContent = s ? 'Inside the ' + s : ''; whereLast = s; } }
+  function setWhere(s) {
+    if (s === whereLast) return;
+    whereLast = s;
+    $('whereTag').textContent = !s ? '' : state.mode === 'walk' ? 'Inside the ' + s : s;
+  }
 
   // ------------------------------------------------------------- sync ---
   const ui = {
     showInfo,
     syncMode(m) {
       syncMode(m);
-      $('walkHud').classList.toggle('hidden', m !== 'walk');
+      $('walkHud').classList.toggle('hidden', m === 'orbit');
       setWalkHint(false);
-      if (m === 'walk') flashHint();
+      if (m !== 'orbit') flashHint();
       document.body.classList.toggle('walking', m === 'walk');
+      document.body.classList.toggle('flying', m === 'fly');
+      if (m !== 'walk') setWhere('');
+      const sel = PLACES.find((q) => q.id === state.selected);
+      if (sel && !$('info').classList.contains('hidden')) showInfo(sel);
     },
     syncEra(e) {
       syncEraSeg(e);
       $('eraBtnLabel').textContent = e === 'today' ? '2560 BCE' : 'Today';
       press('eraBtn', e === 'built');
       $('eraBadge').textContent = e === 'today' ? 'Today' : 'As built, c. 2560 BCE';
-      toast(e === 'today' ? 'Today: weathered ruins, modern Giza beyond' : 'c. 2560 BCE: polished casing, complete temples, Nile flood');
+      toast(e === 'today' ? 'Today' : 'As built, c. 2560 BCE');
     },
-    syncXray(on) { press('xrayBtn', on); },
+    syncXray(on) { press('xrayBtn', on); $('xrayChk').checked = on; },
     syncSection(on) {
       press('secBtn', on);
       $('sectionBar').classList.toggle('hidden', !on);
@@ -287,14 +307,6 @@ export function createUI(app, act) {
     },
     syncTime,
     updateCompass, setWalkHint, setWhere, toast,
-    maybeShowHelp() {
-      let seen = false;
-      try { seen = localStorage.getItem('giza-help') === '1'; } catch (e) { /* ignore */ }
-      if (!seen && !new URLSearchParams(location.search).has('still')) {
-        showHelp(true);
-        try { localStorage.setItem('giza-help', '1'); } catch (e) { /* ignore */ }
-      }
-    },
   };
 
   function showHelp(on) { $('help').classList.toggle('hidden', !on); if (on) $('helpClose').focus(); }
@@ -310,12 +322,15 @@ export function createUI(app, act) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     switch (e.code) {
       case 'KeyV': act.setMode(state.mode === 'walk' ? 'orbit' : 'walk'); break;
+      case 'KeyG': act.setMode(state.mode === 'fly' ? 'orbit' : 'fly'); break;
       case 'KeyO': act.setMode('orbit'); break;
       case 'KeyC': act.setSection(!state.section); break;
       case 'KeyX': act.setXray(!state.xray); break;
-      case 'KeyE': if (state.mode !== 'walk') act.setEra(state.era === 'today' ? 'built' : 'today'); break;
+      case 'KeyB': act.setEra(state.era === 'today' ? 'built' : 'today'); break;
+      case 'KeyE': if (state.mode === 'orbit') act.setEra(state.era === 'today' ? 'built' : 'today'); break;
       case 'KeyL': act.setLabels(!state.labels); break;
       case 'KeyH': showHelp($('help').classList.contains('hidden')); break;
+      case 'Home': act.flyHome(); break;
       case 'KeyT': app.tour.active ? app.tour.stop() : app.tour.start(); break;
       case 'KeyF': if (state.mode === 'walk') act.setTorch(!state.torch); break;
       case 'Escape':
@@ -328,7 +343,7 @@ export function createUI(app, act) {
   // stop camera fly when the user grabs the view
   app.renderer.domElement.addEventListener('pointerdown', () => {
     app.cancelFly?.();
-    if (state.mode === 'orbit') app.tour?.userInterrupt();
+    if (state.mode !== 'walk') app.tour?.userInterrupt();
   });
   app.renderer.domElement.addEventListener('wheel', () => app.cancelFly?.(), { passive: true });
 

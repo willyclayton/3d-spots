@@ -13,12 +13,12 @@ export function createTour(app, act) {
 
   const place = (id) => async () => {
     const p = act.placeById(id);
-    if (app.state.mode === 'walk') act.setMode('orbit');
+    if (app.state.mode !== 'orbit') act.setMode('orbit');
     if (!(p.pyr && !p.exterior)) { act.setSection(false); act.setXray(false); }
     await act.selectPlace(id, { silent: true });
   };
   const view = (name, opts = {}) => async () => {
-    if (app.state.mode === 'walk') act.setMode('orbit');
+    if (app.state.mode !== 'orbit') act.setMode('orbit');
     act.setSection(false); act.setXray(false);
     if (opts.era) act.setEra(opts.era);
     await act.flyToView(name);
@@ -41,7 +41,7 @@ export function createTour(app, act) {
     { title: 'The original entrance', dur: 10, run: place('k-entrance'),
       text: '17 m up the north face, under giant gable stones. A hidden corridor lies behind.' },
     { title: 'Cutting the pyramid open', dur: 12,
-      run: async () => { if (app.state.mode === 'walk') act.setMode('orbit'); await act.setSection(true, { target: 'khufu', plane: 'x', offset: 7.29, flip: false }); },
+      run: async () => { if (app.state.mode !== 'orbit') act.setMode('orbit'); await act.setSection(true, { target: 'khufu', plane: 'x', offset: 7.29, flip: false }); },
       text: 'One passage drops into the bedrock; another climbs to the chambers.' },
     { title: 'The Subterranean Chamber', dur: 10, run: place('k-subterranean'),
       text: 'An unfinished room 30 m below the pyramid: the first plan, abandoned.' },

@@ -32,9 +32,12 @@ An explorable model of the Giza plateau:
 - **Cutaway**: slice any pyramid north–south or east–west at any position. The cut faces,
   with their courses and joints, and the bedrock pit below are rebuilt live.
 - **X-ray**: see-through stone with the passages glowing through the ground.
-- **Walk mode**: first-person, with collision, through the robbers' tunnel and up the
-  Grand Gallery to the King's Chamber, or into the bedrock. Works with keyboard and mouse,
-  or with a touch joystick.
+- **Three ways to move**: *Explore* (orbit, pan and zoom like a map; double-click or
+  double-tap to fly to a spot; W A S D to pan), *Fly* (free flight over the whole site:
+  W A S D, Q / E down and up, drag to look; on touch a joystick plus climb buttons; speed
+  grows with height) and *Walk* (first-person, with collision, through the robbers' tunnel
+  and up the Grand Gallery to the King's Chamber, or into the bedrock). Camera moves glide
+  between places, rising on long trips; the Home button returns to the whole site.
 - **Today / 2560 BCE**: weathered ruins and modern Giza, or polished Tura casing, complete
   temples and causeways, and the Nile in flood.
 - **The real sun**: solar position for Giza on any date and time, with a physical sky,
@@ -43,7 +46,9 @@ An explorable model of the Giza plateau:
   toward the sun, a filmic colour grade, rain streaks and drifted sand on the stone, darker
   joints and inside corners between the steps, soft contact shading around every monument,
   loose stones and rubble, date palms, the stepped Khufu quarry, and a rippling Nile flood.
-- **About 50 labelled places** with descriptions and facts, search, shareable links (`?place=k-king`).
+- **About 50 labelled places** with short map labels that stay out of the way (a few at a
+  time, never over the controls, hidden while the view moves fast), a one-line summary with
+  details on demand, search and shareable links (`?place=k-king`).
 
 ### URL parameters
 
@@ -63,7 +68,7 @@ An explorable model of the Giza plateau:
 
 ```
 index.html                 hub page
-shared/engine/             reusable for future spots: sky & sun, labels, walking, geometry helpers
+shared/engine/             reusable for future spots: sky & sun, atmosphere, labels, walking, flying, geometry helpers
 shared/ui.css              shared UI styles
 giza/index.html            the Giza app
 giza/js/data/              site layout (site.js) and places with descriptions (places.js)

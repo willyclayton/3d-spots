@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SkySystem } from '../../shared/engine/sky.js';
 import { LabelLayer } from '../../shared/engine/labels.js';
 import { WalkController } from '../../shared/engine/walk.js';
+import { FlyController } from '../../shared/engine/fly.js';
 import { SITE, PYRAMIDS, SMALL_PYRAMIDS, SPHINX } from './data/site.js';
 import { PLACES } from './data/places.js';
 import { loadTextures } from './materials.js';
@@ -51,16 +52,21 @@ const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container
 scene.add(camera);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.08;
+controls.dampingFactor = 0.075;
+controls.rotateSpeed = 0.75;
+controls.zoomSpeed = 1.15;
 controls.maxPolarAngle = THREE.MathUtils.degToRad(88);
 controls.minDistance = 2;
-controls.maxDistance = 7000;
+controls.maxDistance = 4200;
 controls.zoomToCursor = true;
 controls.screenSpacePanning = false;
 
 const sky = new SkySystem(renderer, scene, { lat: SITE.lat, lon: SITE.lon, utcOffset: SITE.utcOffset, shadowSize: quality === 'low' ? 2048 : 4096 });
 const progress = (p, msg) => window.__setProgress?.(p, msg);
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
+
+// the explorable area (world metres): plateau, valley temples, town edge
+const BOUNDS = { x0: -1700, x1: 1500, z0: -1300, z1: 2000 };
 
 const state = {
   mode: 'orbit', era: 'today', xray: false, section: false, labels: true, selected: null,
@@ -143,6 +149,18 @@ async function init() {
     onLockChange: (locked) => app.ui?.setWalkHint(locked),
   });
   app.walk = walk;
+  const flyer = new FlyController(camera, renderer.domElement, {
+    groundAt: (x, z) => app.terrain.heightAt(x, z, false),
+    limit: (p) => {
+      const g = app.terrain.heightAt(p.x, p.z, false) + 2.5;
+      if (p.y < g) p.y = g;
+      if (!state.section && !state.xray) keepOutOfStone(p, 3);
+    },
+    joystickEl: document.getElementById('joystick'),
+    upEl: document.getElementById('flyUp'), downEl: document.getElementById('flyDown'),
+    bounds: { x0: BOUNDS.x0 - 600, x1: BOUNDS.x1 + 600, z0: BOUNDS.z0 - 600, z1: BOUNDS.z1 + 600, yMax: 2600 },
+  });
+  app.flyer = flyer;
   setupWorld();
 
   // pooled point lights for interiors + a hand torch
@@ -160,7 +178,7 @@ async function init() {
   Object.assign(app, { pool, torch, fill });
 
   // ---- labels
-  const reservedIds = ['toolbar', 'sectionBar', 'tour', 'info', 'compass', 'placesBtn', 'places', 'settings'];
+  const reservedIds = ['toolbar', 'sectionBar', 'tour', 'info', 'compass', 'homeBtn', 'placesBtn', 'places', 'settings'];
   const labels = new LabelLayer(document.getElementById('labels'), camera, {
     onSelect: (id) => selectPlace(id),
     reserved: () => {
@@ -202,6 +220,8 @@ async function init() {
     },
   });
   walk.onUserMove = () => app.tour.userInterrupt();
+  flyer.onUserMove = () => app.tour.userInterrupt();
+  setupMapNavigation();
 
   // ---- initial view
   const v = params.get('view');
@@ -333,6 +353,19 @@ function cutExposes(el, sec) {
   return sec.offset > lo - 0.4 && sec.offset < hi + 0.4;
 }
 
+// short names for the map; the full name is in the info card
+const SHORT = {
+  khufu: 'Great Pyramid', khafre: 'Khafre', menkaure: 'Menkaure',
+  'queens-khufu': 'Queens’ pyramids', 'queens-menkaure': 'Queens’ pyramids', satellite: 'Satellite pyramid',
+  mast: 'Summit', 'k-robbers': 'Robbers’ tunnel', 'k-well': 'Well shaft', 'k-qshafts': 'Shafts', 'k-kshafts': 'Shafts',
+  'k-sarc': 'Sarcophagus', 'k-ante': 'Antechamber', 'k-nfc': 'Hidden corridor', 'kh-burial': 'Burial chamber',
+  'mk-niches': 'Six niches', 'mk-burial': 'Burial chamber', 'valley-khafre': 'Valley Temple', 'causeway-khafre': 'Causeway',
+  'mortuary-khafre': 'Mortuary Temple', 'mortuary-khufu': 'Mortuary Temple', 'menkaure-temples': 'Menkaure’s temples',
+  hetepheres: 'Hetepheres', khentkaus: 'Khentkaus', 'boat-pit': 'Ship pits', 'boat-pits-east': 'Boat pits',
+  'workers-tombs': 'Builders’ tombs', 'workers-town': 'Workers’ town', panorama: 'Panorama', gem: 'Grand Egyptian Museum',
+  quarry: 'Quarry',
+};
+
 function setupLabels() {
   const { labels } = app;
   const hulls = Object.values(app.pyr.info).map(({ P, half, tanA }) => ({ P, half, tanA, H: P.heightNow }));
@@ -368,9 +401,9 @@ function setupLabels() {
   for (const p of PLACES) {
     const el = p.pyr && !p.exterior ? elementAt(p) : null;
     const it = labels.add({
-      id: p.id, text: p.name, kind: p.kind, prio: p.prio,
+      id: p.id, text: p.name, short: SHORT[p.id] || p.name.replace(/\s*\(.*\)\s*$/, ''), kind: p.kind, prio: p.prio,
       getPos: (out) => placeWorldPos(p, out),
-      maxDist: p.prio === 1 ? 9000 : p.prio === 2 ? 2200 : 700,
+      maxDist: p.prio === 1 ? 9000 : p.prio === 2 ? 1700 : 520,
       occlusion: (p.pyr && !p.exterior) ? (pos, cam) => insideBlocked(p, pos, cam) : occluded,
       visible: () => {
         if (p.era && p.era !== state.era) return false;
@@ -392,30 +425,60 @@ function setupLabels() {
 // ---------------------------------------------------------------- actions --
 function setMode(mode, opts = {}) {
   if (mode === state.mode && !opts.force) return;
-  const { walk } = app;
+  const { walk, flyer } = app;
+  const prev = state.mode;
+  app.cancelFly();
+  if (prev === 'fly' && mode !== 'fly') { flyer.disable(); aimAhead(); }
   if (mode === 'walk') {
     state.mode = mode;
     controls.enabled = false;
-    app.cancelFly();
     if (state.section) setSection(false, { instant: true });
-    if (state.xray) setXray(false);
+    if (state.xray) setXray(false, { instant: true });
     const sp = walkSpawn();
-    if (state.section) setSection(false, { instant: true });
     walk.enable(sp.pos, sp.yaw, 0);
     camera.near = 0.05; camera.updateProjectionMatrix();
-    app.ui.toast(sp.hint || (coarse ? 'Walk mode: joystick to move, drag to look' : 'Walk mode: W A S D to move, click to look around'));
+    app.ui.toast(sp.hint || (coarse ? 'Joystick to move, drag to look' : 'W A S D to move, click to look around'));
+  } else if (mode === 'fly') {
+    state.mode = mode;
+    controls.enabled = false;
+    if (prev === 'walk') {
+      walk.disable(); walk.inside = null; app.sky.setInterior(0);
+      camera.position.y += 30;              // take off from where you stood
+    }
+    flyer.enable();
+    app.ui.toast(coarse ? 'Joystick to fly · drag to look · ▲▼ to climb' : 'W A S D to fly · Q / E down and up · drag to look · Shift faster');
   } else {
     state.mode = mode;
-    const wasInside = walk.inside;
-    walk.disable();
     controls.enabled = true;
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    controls.target.copy(camera.position).addScaledVector(fwd, 30);
-    walk.inside = null;
-    app.sky.setInterior(0);
-    if (wasInside) setSection(true, { target: wasInside });
+    if (prev === 'walk') {
+      const wasInside = walk.inside;
+      walk.disable();
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      controls.target.copy(camera.position).addScaledVector(fwd, 30);
+      walk.inside = null;
+      app.sky.setInterior(0);
+      if (wasInside) setSection(true, { target: wasInside });
+    }
   }
   app.ui.syncMode(mode);
+}
+
+// After free flight, orbit about a point straight ahead (keeping the view
+// exactly as it is): where the line of sight meets the ground, or a few
+// hundred metres out if it never does.
+function aimAhead() {
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const p = camera.position.clone();
+  const h = Math.max(5, p.y - app.terrain.heightAt(p.x, p.z, false));
+  const far = THREE.MathUtils.clamp(h * 3, 150, 1200);
+  let d = far;
+  const step = Math.max(2, h * 0.05);
+  for (let s = step; s < far; s += step) {
+    const q = p.clone().addScaledVector(fwd, s);
+    if (q.y <= app.terrain.heightAt(q.x, q.z, false)) { d = s; break; }
+  }
+  controls.target.copy(p).addScaledVector(fwd, d);
+  controls.update();
 }
 
 // Where to put the visitor when they switch to Walk.
@@ -488,6 +551,7 @@ function enterWalkAt(p) {
     yaw = Math.atan2(-(target.x - pos.x), -(target.z - pos.z));
   }
   app.cancelFly();
+  if (state.mode === 'fly') app.flyer.disable();
   if (state.section) setSection(false, { instant: true });
   if (state.xray) setXray(false, { instant: true });
   app.cancelFly();
@@ -684,15 +748,36 @@ function setTime(h) {
 
 // ---------------------------------------------------------- camera moves --
 let fly = null;
+const _sph = new THREE.Spherical();
 function flyTo(pos, target, ms = 1600, { free = false } = {}) {
   if (fly) fly.done();
-  const from = { p: camera.position.clone(), t: controls.target.clone() };
-  const dist = from.p.distanceTo(pos);
+  const t0 = controls.target.clone(), t1 = target.clone();
+  const o0 = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t0));
+  const o1 = new THREE.Spherical().setFromVector3(pos.clone().sub(t1));
+  o0.radius = Math.max(o0.radius, 0.5); o1.radius = Math.max(o1.radius, 0.5);
+  let dTheta = o1.theta - o0.theta;
+  dTheta = Math.atan2(Math.sin(dTheta), Math.cos(dTheta));        // the short way round
+  const travel = t0.distanceTo(t1);
+  // long trips rise up and come back down, so the destination is seen coming
+  const bump = free ? 0 : Math.min(1.6, (travel / Math.max(o0.radius, o1.radius, 40)) * 0.35);
+  const zoom = Math.abs(Math.log(o1.radius / o0.radius));
+  const dur = free ? ms : THREE.MathUtils.clamp(650 + 480 * Math.log2(1 + travel / 120) + 260 * zoom + Math.abs(dTheta) * 220, 700, Math.max(ms, 2900));
   return new Promise((resolve) => {
-    // free: the path may start inside the stone (backing out of a cutaway)
-    fly = { from, to: { p: pos.clone(), t: target.clone() }, t0: performance.now(), ms: Math.min(2600, ms + dist * 0.4), arc: free ? 0 : Math.min(400, dist * 0.18), free, done: resolve };
+    fly = { t0, t1, o0, o1, dTheta, bump, ms: dur, start: performance.now(), free, done: resolve };
     if (STILL) { camera.position.copy(pos); controls.target.copy(target); fly = null; controls.update(); resolve(); }
   });
+}
+function stepFly(now) {
+  const f = fly;
+  const t = Math.min(1, (now - f.start) / f.ms);
+  const e = t * t * t * (t * (t * 6 - 15) + 10);                    // smootherstep
+  controls.target.lerpVectors(f.t0, f.t1, e);
+  const r = Math.exp(THREE.MathUtils.lerp(Math.log(f.o0.radius), Math.log(f.o1.radius), e)) * (1 + f.bump * Math.sin(Math.PI * e));
+  const phi = THREE.MathUtils.clamp(THREE.MathUtils.lerp(f.o0.phi, f.o1.phi, e) - Math.min(0.35, f.bump * 0.4) * Math.sin(Math.PI * e), 0.02, Math.PI - 0.02);
+  _sph.set(r, phi, f.o0.theta + f.dTheta * e);
+  camera.position.setFromSpherical(_sph).add(controls.target);
+  camera.lookAt(controls.target);
+  if (t >= 1) { fly = null; f.done(); }
 }
 app.flyTo = flyTo;
 app.cancelFly = () => { if (fly) { fly.done(); fly = null; } };
@@ -700,10 +785,15 @@ app.cancelFly = () => { if (fly) { fly.done(); fly = null; } };
 // On phones a tall portrait view sees little sideways: back off so the subject fits.
 function fitScale() { return Math.max(1, 0.9 / Math.max(0.2, camera.aspect)); }
 function flyHome() {
-  if (state.mode === 'walk') setMode('orbit');
-  if (state.section) setSection(false);
-  flyTo(app.home.pos, app.home.target);
+  if (state.mode !== 'orbit') setMode('orbit');
+  if (state.section) setSection(false, { instant: true });
+  if (state.xray) setXray(false, { instant: true });
+  app.ui.hideInfo();
+  const portrait = camera.aspect < 0.8;
+  const [p, t] = portrait ? [[-820, 560, 1080], [-300, 15, 380]] : [app.home.pos.toArray(), app.home.target.toArray()];
+  flyTo(new THREE.Vector3(...p), new THREE.Vector3(...t));
 }
+app.flyHome = flyHome;
 
 function viewFor(p) {
   const anchor = placeWorldPos(p);
@@ -737,9 +827,14 @@ function selectPlace(id, opts = {}) {
   if (opts.noMove) return Promise.resolve();
   if (app.tour?.active && !opts.silent) app.tour.stop();
   if (p.era && p.era !== state.era) setEra(p.era);
+  if (state.mode === 'fly') setMode('orbit');
   if (state.mode === 'walk') {
     if (p.walk || !p.pyr || p.exterior) enterWalkAt(p);
     return Promise.resolve();
+  }
+  if (!(p.pyr && !p.exterior)) {
+    if (state.section) setSection(false, { instant: true });
+    if (state.xray) setXray(false, { instant: true });
   }
   if (p.pyr && !p.exterior) {
     // open the pyramid so the place can be seen
@@ -793,6 +888,71 @@ function keepOutOfStone(p, margin = 1.5) {
 }
 app.keepOutOfStone = keepOutOfStone;
 
+// ------------------------------------------------------- map navigation --
+// Keep the orbit centre on the map, pan with the keyboard, and double-click
+// (or double-tap) anywhere to fly there.
+function clampTarget() {
+  const t = controls.target;
+  const x = THREE.MathUtils.clamp(t.x, BOUNDS.x0, BOUNDS.x1), z = THREE.MathUtils.clamp(t.z, BOUNDS.z0, BOUNDS.z1);
+  if (x !== t.x || z !== t.z) { camera.position.x += x - t.x; camera.position.z += z - t.z; t.x = x; t.z = z; }
+  const g = app.terrain.heightAt(t.x, t.z, false);
+  const y = THREE.MathUtils.clamp(t.y, g - 60, g + 320);
+  if (y !== t.y) t.y += (y - t.y) * 0.15;      // ease, never jolt the camera
+}
+const panKeys = new Set();
+function panByKeys(dt) {
+  if (!panKeys.size || !controls.enabled) return;
+  let f = 0, r = 0;
+  if (panKeys.has('KeyW') || panKeys.has('ArrowUp')) f += 1;
+  if (panKeys.has('KeyS') || panKeys.has('ArrowDown')) f -= 1;
+  if (panKeys.has('KeyA') || panKeys.has('ArrowLeft')) r -= 1;
+  if (panKeys.has('KeyD') || panKeys.has('ArrowRight')) r += 1;
+  if (!f && !r) return;
+  app.cancelFly();
+  const fwd = _fwd.copy(controls.target).sub(camera.position); fwd.y = 0;
+  if (fwd.lengthSq() < 1e-6) return;
+  fwd.normalize();
+  const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+  const k = camera.position.distanceTo(controls.target) * 0.9 * dt;
+  const d = fwd.multiplyScalar(f * k).addScaledVector(right, r * k);
+  controls.target.add(d); camera.position.add(d);
+}
+function setupMapNavigation() {
+  const dom = renderer.domElement;
+  addEventListener('keydown', (e) => {
+    if (state.mode !== 'orbit' || (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (/^(Key[WASD]|Arrow(Up|Down|Left|Right))$/.test(e.code)) { panKeys.add(e.code); if (e.code.startsWith('Arrow')) e.preventDefault(); }
+  });
+  addEventListener('keyup', (e) => panKeys.delete(e.code));
+  addEventListener('blur', () => panKeys.clear());
+  const ray = new THREE.Raycaster();
+  const focusAt = (cx, cy) => {
+    if (state.mode !== 'orbit') return;
+    const r = dom.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1), camera);
+    const objs = [app.ground, ...Object.values(app.pyr.groups).map((g) => g.group), app.pyr.smallGroup, app.pyr.smallBuilt];
+    const hit = ray.intersectObjects(objs, true).find((h) => h.object.visible);
+    if (!hit) return;
+    const off = camera.position.clone().sub(controls.target);
+    const d = THREE.MathUtils.clamp(off.length() * 0.55, 30, 900);
+    off.setLength(d);
+    const pos = hit.point.clone().add(off);
+    const gy = app.terrain.heightAt(pos.x, pos.z, false) + 3;
+    if (pos.y < gy) pos.y = gy;
+    flyTo(pos, hit.point);
+  };
+  dom.addEventListener('dblclick', (e) => focusAt(e.clientX, e.clientY));
+  let last = null;
+  dom.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') e.target._down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  dom.addEventListener('pointerup', (e) => {
+    if (e.pointerType !== 'touch' || !e.target._down) return;
+    const d = e.target._down; e.target._down = null;
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10 || performance.now() - d.t > 300) { last = null; return; }
+    const now = performance.now();
+    if (last && now - last.t < 350 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 30) { last = null; focusAt(e.clientX, e.clientY); } else last = { x: e.clientX, y: e.clientY, t: now };
+  });
+}
+
 // Errors show up as a short note on screen (most visitors use phones, where
 // there is no console), at most one every few seconds.
 let lastErr = 0;
@@ -812,6 +972,7 @@ renderer.debug.onShaderError = (gl, program, vs, fs) => {
 };
 
 // ------------------------------------------------------------------- loop --
+const _fwd = new THREE.Vector3(), _focus = new THREE.Vector3();
 const clock = new THREE.Clock();
 let envTimer = 0;
 function startLoop() {
@@ -819,14 +980,7 @@ function startLoop() {
   const loop = () => {
     const dt = Math.min(0.1, clock.getDelta());
     const now = performance.now();
-    if (fly) {
-      const t = Math.min(1, (now - fly.t0) / fly.ms);
-      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      camera.position.lerpVectors(fly.from.p, fly.to.p, e);
-      camera.position.y += Math.sin(Math.PI * e) * fly.arc;
-      controls.target.lerpVectors(fly.from.t, fly.to.t, e);
-      if (t >= 1) { const f = fly; fly = null; f.done(); }
-    }
+    if (fly && state.mode === 'orbit') stepFly(now);
     // never leave the stone sliced open while the cutaway is off
     if (app.section.enabled !== state.section && !fly?.free) {
       if (!state.section) { app.section.setEnabled(false); app.ui.syncSection(false); } else setSection(true);
@@ -836,7 +990,19 @@ function startLoop() {
       app.walk.update(dt);
       focus = app.walk.feet; radius = 90;
       app.ui.setWhere(app.walk.inside ? PYRAMIDS[app.walk.inside].name : '');
+    } else if (state.mode === 'fly') {
+      app.flyer.update(dt);
+      const h = Math.max(2, app.flyer.height());
+      camera.near = THREE.MathUtils.clamp(h * 0.004, 0.1, 2.5);
+      camera.updateProjectionMatrix();
+      const fwd = _fwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
+      focus = _focus.copy(camera.position).addScaledVector(fwd, Math.min(h * 2, 400));
+      focus.y = app.terrain.heightAt(focus.x, focus.z, false);
+      radius = THREE.MathUtils.clamp(h * 1.6, 70, 900);
+      app.ui.setWhere(`${Math.round(h)} m up`);
     } else {
+      panByKeys(dt);
+      if (!fly) clampTarget();
       controls.update();
       const minY = app.terrain.heightAt(camera.position.x, camera.position.z, false) + 1.2;
       if (camera.position.y < minY && !state.section) camera.position.y = minY;
@@ -849,12 +1015,12 @@ function startLoop() {
     app.sky.fitShadow(focus, radius);
     app.tour.tick(dt);
     if (state.era === 'built') { const nm = app.complex.water.material.normalMap; nm.offset.x += dt * 0.012; nm.offset.y += dt * 0.007; }
-    applyViewOffset();
+    applyViewOffset(STILL ? 1 : dt);
     updateLights(dt);
     envTimer += dt;
     if (envTimer > 0.25) { envTimer = 0; app.sky.updateEnvironment(); }
     renderer.render(scene, camera);
-    if (state.labels) app.labels.update(container.clientWidth, container.clientHeight);
+    if (state.labels) app.labels.update(container.clientWidth, container.clientHeight, dt);
     app.ui.updateCompass(camera);
     frames++;
     if (STILL && frames >= STILL) { renderer.setAnimationLoop(null); window.__stillDone = true; }
@@ -865,14 +1031,17 @@ function startLoop() {
 
 // On phones, keep the subject in the part of the screen not covered by the
 // bottom sheet (place details or the tour card).
-let lastOffset = 0;
-function applyViewOffset() {
+let lastOffset = 0, offCur = 0;
+function applyViewOffset(dt = 1) {
   const cover = state.mode === 'orbit' || app.tour?.active ? app.ui.bottomCover() : 0;
-  const k = Math.round(cover * 0.5);
-  if (k === lastOffset) return;
-  lastOffset = k;
+  const k = cover * 0.5;
+  offCur += (k - offCur) * Math.min(1, dt * 7);
+  if (Math.abs(offCur - k) < 0.5) offCur = k;
+  const o = Math.round(offCur);
+  if (o === lastOffset) return;
+  lastOffset = o;
   const w = container.clientWidth, h = container.clientHeight;
-  if (k > 0) camera.setViewOffset(w, h, 0, k, w, h);
+  if (o > 0) camera.setViewOffset(w, h, 0, o, w, h);
   else camera.clearViewOffset();
 }
 

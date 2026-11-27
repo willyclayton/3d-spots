@@ -421,6 +421,11 @@ const TERRAIN_NORMAL = /* glsl */`
     vec3 tn = mix(mix(nG, nS, sandW), nR, rockW);
     tn = mix(tn, vec3(0.0, 0.0, 1.0), max(roadW * 0.8, zoneW * 0.7));
     vec3 Nw = normalize(normalize(vWNrm) + vec3(tn.x, 0.0, -tn.y) * 0.9);
+    // wind ripples in the loose sand (north-westerly wind), faded out before they alias
+    float rph = dot(wp2, vec2(0.84, 0.54)) * 3.2 + texture2D(uNoise, wp2 / 19.0).r * 10.0;
+    float rfw = fwidth(rph);
+    float ra = sandW * (1.0 - rockW) * (1.0 - roadW) * (1.0 - zoneW) * (1.0 - paveW) * (1.0 - smoothstep(0.5, 1.4, rfw));
+    Nw = normalize(Nw + vec3(0.84, 0.0, 0.54) * (cos(rph) + 0.35 * cos(rph * 2.0)) * 0.22 * ra);
     normal = normalize((viewMatrix * vec4(Nw, 0.0)).xyz);
   }
 `;

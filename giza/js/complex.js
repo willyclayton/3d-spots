@@ -375,37 +375,53 @@ function buildCity(terrain, quality, rnd) {
   const grp = new THREE.Group(); grp.name = 'city';
   const k = quality === 'low' ? 0.3 : quality === 'medium' ? 0.6 : 1;
   const box = new THREE.BoxGeometry(1, 1, 1); box.translate(0, 0.5, 0);
-  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92 });
+  // Giza's town: unplastered red brick in a grey concrete frame, dusty
+  // plaster, flat roofs. Floors, slabs, columns and windows come from the
+  // shader; the instance colour is the infill.
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 });
   mat.onBeforeCompile = (sh) => {
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;')
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN; varying float vLY; varying float vHt;')
       .replace('#include <fog_vertex>', `#include <fog_vertex>
         vec4 wq = vec4(transformed, 1.0);
         #ifdef USE_INSTANCING
           wq = instanceMatrix * wq;
           vWN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);
+          vHt = length(instanceMatrix[1].xyz);
         #else
           vWN = normalize(mat3(modelMatrix) * objectNormal);
+          vHt = 1.0;
         #endif
+        vLY = position.y * vHt;
         vWP = (modelMatrix * wq).xyz;`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;')
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN; varying float vLY; varying float vHt;')
       .replace('#include <map_fragment>', `#include <map_fragment>
         {
           vec3 n = normalize(vWN);
+          vec3 concrete = vec3(0.30, 0.29, 0.27);
           if (abs(n.y) < 0.5) {
             float hc = abs(n.x) > 0.5 ? vWP.z : vWP.x;
-            float fy = fract(vWP.y / 3.05), fx = fract(hc / 3.3);
-            float aw = fwidth(hc / 3.3) * 1.5, ay = fwidth(vWP.y / 3.05) * 1.5;
-            float win = smoothstep(0.32 - ay, 0.32 + ay, fy) * (1.0 - smoothstep(0.78 - ay, 0.78 + ay, fy))
-                      * smoothstep(0.22 - aw, 0.22 + aw, fx) * (1.0 - smoothstep(0.72 - aw, 0.72 + aw, fx));
+            float fy = fract(vLY / 3.05), fx = fract(hc / 3.6);
+            float aw = fwidth(hc / 3.6) * 1.5, ay = fwidth(vLY / 3.05) * 1.5;
             float fade = 1.0 - smoothstep(0.25, 0.6, max(aw, ay));
-            diffuseColor.rgb *= mix(1.0, 0.32, win * fade);
-            diffuseColor.rgb *= 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.07, fy)) * fade;
+            // concrete slab at each floor and columns between the bays
+            float slab = 1.0 - smoothstep(0.08 - ay, 0.08 + ay, fy);
+            float col = 1.0 - smoothstep(0.06 - aw, 0.06 + aw, min(fx, 1.0 - fx) * 2.0);
+            diffuseColor.rgb = mix(diffuseColor.rgb, concrete, max(slab, col) * 0.85 * fade);
+            // windows, some with shutters closed
+            float win = smoothstep(0.34 - ay, 0.34 + ay, fy) * (1.0 - smoothstep(0.80 - ay, 0.80 + ay, fy))
+                      * smoothstep(0.28 - aw, 0.28 + aw, fx) * (1.0 - smoothstep(0.72 - aw, 0.72 + aw, fx));
+            float shut = step(0.62, fract(sin(dot(floor(vec2(hc / 3.6, vLY / 3.05)), vec2(12.9898, 78.233))) * 43758.5453));
+            diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.035, 0.032, 0.03), vec3(0.16, 0.12, 0.09), shut), win * fade * 0.9);
+            // grime at street level, a lighter parapet at the top
+            diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(0.0, 2.6, vLY));
+            diffuseColor.rgb = mix(diffuseColor.rgb, concrete * 1.15, (1.0 - smoothstep(0.25, 0.45, vHt - vLY)) * 0.7);
           } else {
-            diffuseColor.rgb *= 1.08;
+            // flat roofs: dusty concrete
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.24, 0.22, 0.2), 0.7);
           }
         }`);
   };
-  mat.customProgramCacheKey = () => 'city-facade';
+  mat.customProgramCacheKey = () => 'city-facade-2';
   const cands = [];
   const cell = 13;
   for (let x = -2400; x < 2300; x += cell) {
@@ -422,28 +438,55 @@ function buildCity(terrain, quality, rnd) {
   const max = Math.round(16000 * k);
   const keep = Math.min(1, max / Math.max(1, cands.length));
   const im = new THREE.InstancedMesh(box, mat, Math.min(max, cands.length));
+  // rooftop clutter: water tanks and stair huts
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+  const roofs = new THREE.InstancedMesh(box, roofMat, Math.round(Math.min(max, cands.length) * 1.4));
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color();
-  const palette = [[0.62, 0.42, 0.33], [0.66, 0.47, 0.37], [0.74, 0.69, 0.6], [0.8, 0.76, 0.68], [0.66, 0.65, 0.62], [0.84, 0.8, 0.72], [0.56, 0.44, 0.38]];
-  let n = 0;
+  // sRGB: red brick (most common), dusty plaster, grey concrete, faded paint
+  const palette = [
+    [0.57, 0.40, 0.32], [0.54, 0.38, 0.31], [0.61, 0.44, 0.35], [0.56, 0.41, 0.34],
+    [0.72, 0.65, 0.54], [0.69, 0.62, 0.52], [0.62, 0.60, 0.57], [0.70, 0.61, 0.50], [0.63, 0.57, 0.49],
+  ];
+  const up = new THREE.Vector3(0, 1, 0);
+  let n = 0, nr = 0;
   for (const [x, z] of cands) {
     if (n >= im.count) break;
     if (rnd() > keep * 0.93) continue;
     const w = cell * (0.72 + rnd() * 0.22), l = cell * (0.72 + rnd() * 0.22);
-    const floors = 2 + Math.floor(rnd() * rnd() * 9) + (rnd() < 0.25 ? 2 : 0);
+    const floors = 2 + Math.floor(rnd() * rnd() * 8) + (rnd() < 0.25 ? 2 : 0);
     const h = floors * 3.05 + 0.6;
     const y = terrain.heightAt(x, z, false) - 0.4;
+    const ang = (rnd() - 0.5) * 0.08;
     p.set(x + (rnd() - 0.5) * 2, y, z + (rnd() - 0.5) * 2); s.set(w, h, l);
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (rnd() - 0.5) * 0.08);
+    q.setFromAxisAngle(up, ang);
     m4.compose(p, q, s); im.setMatrixAt(n, m4);
     const c = palette[Math.floor(rnd() * palette.length)];
-    const v = 0.85 + rnd() * 0.25;
-    col.setRGB(c[0] * v, c[1] * v, c[2] * v); im.setColorAt(n, col);
+    const v = 0.86 + rnd() * 0.2;
+    col.setRGB(c[0] * v, c[1] * v, c[2] * v, THREE.SRGBColorSpace); im.setColorAt(n, col);
     n++;
+    // a stair hut and a tank or two on most roofs
+    const items = rnd() < 0.7 ? 1 + Math.floor(rnd() * 2.2) : 0;
+    for (let i = 0; i < items && nr < roofs.count; i++) {
+      const hut = i === 0 && rnd() < 0.55;
+      const sx = hut ? 2.4 + rnd() : 1.1 + rnd() * 0.4, sy = hut ? 2.6 : 1.0 + rnd() * 0.5, sz = hut ? 2.6 + rnd() : 1.1 + rnd() * 0.4;
+      const ox = (rnd() - 0.5) * (w - sx - 1), oz = (rnd() - 0.5) * (l - sz - 1);
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      m4.compose(new THREE.Vector3(p.x + ox * ca + oz * sa, y + h, p.z - ox * sa + oz * ca), q, new THREE.Vector3(sx, sy, sz));
+      roofs.setMatrixAt(nr, m4);
+      const g = hut ? c : [0.74, 0.73, 0.7];
+      const vv = 0.85 + rnd() * 0.2;
+      col.setRGB(g[0] * vv, g[1] * vv, g[2] * vv, THREE.SRGBColorSpace); roofs.setColorAt(nr, col);
+      nr++;
+    }
   }
   im.count = n;
   im.castShadow = true; im.receiveShadow = true;
   im.computeBoundingSphere();
   grp.add(im);
+  roofs.count = nr;
+  roofs.castShadow = true; roofs.receiveShadow = true;
+  roofs.computeBoundingSphere();
+  grp.add(roofs);
   // Grand Egyptian Museum: a vast wedge of translucent stone
   const g = new GeoBuilder();
   const gx = COMPLEX.gem.x, gz = COMPLEX.gem.z, y0 = terrain.heightAt(gx, gz, false) - 1;
